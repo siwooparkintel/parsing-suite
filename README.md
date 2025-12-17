@@ -56,7 +56,7 @@ python Phi_summary.py -i <input_path> -o <output_path>
 - **New users**: Start with [ParseAll documentation](./docs/parseall.md)
 - **Advanced workflows**: See [Collection_Parser documentation](./docs/collection-parser.md)
 - **Model-specific analysis**: Review [Phi_summary](./docs/phi-summary.md) or [Llama parser](./docs/llama-parser.md)
-- **Best practices**: Read [Tool BKM](./tool_BKM.md)
+- **Best practices**: Review individual parser documentation in [docs](./docs/) folder
 
 ## Supported Data Types
 
@@ -237,4 +237,4 @@ When adding new parsers:
 
 ---
 
-For detailed information, start with the [Tool BKM](./tool_BKM.md) guide or choose a specific parser from the documentation links above.
+For detailed information, refer to the comprehensive parser documentation in the [docs](./docs/) folder.
