@@ -176,7 +176,6 @@ parsing-suite/
 ├── CatapultV3_Full_Parser.py        # Platform profiler
 ├── bm_llama_parser.py               # Llama model parser
 ├── SA_ETL_first_epoch.py            # ETL analysis
-├── tool_BKM.md                      # Best Known Methods guide
 ├── requirements.txt                 # Python dependencies
 ├── docs/                            # Detailed documentation
 │   ├── parseall.md
@@ -189,6 +188,7 @@ parsing-suite/
 ├── src/                             # Configuration and source data
 ├── tools/                           # Utility functions
 ├── test/                            # Test cases
+├── .gitignore                       # Git ignore rules
 └── README.md                        # This file
 ```
 
