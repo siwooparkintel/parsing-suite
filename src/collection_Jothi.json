@@ -1,0 +1,14 @@
+[
+    {
+        "data_label":"Jothi",
+        "condition":"ARL",
+        "data_summary_type": "compact",
+        "socwatch_summary_path":"\\\\10.54.63.126\\Pnpext\\Siwoo\\data\\Jothi_test\\ARL_socwatch\\Lame_socwatch.csv"
+    },  
+    {
+        "data_label":"Jothi",
+        "condition":"PTL",
+        "data_summary_type": "compact",
+        "socwatch_summary_path":"\\\\10.54.63.126\\Pnpext\\Siwoo\\data\\Jothi_test\\PTL_socwatch\\TS_SOCWATCH.csv"
+    }
+]

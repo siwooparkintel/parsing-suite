@@ -1,0 +1,9 @@
+[
+    {
+        "data_label":"selKraken",
+        "condition":"bigcore8533",
+        "data_summary_type": "compact",
+        "power_summary_path":"\\\\amr.corp.intel.com\\EC\\proj\\pst\\jf\\SPA-Lab\\Shweta\\selKraken\\bigcore8533\\power\\selenium_powerbigbore85331\\selenium_powerbigbore85331_summary.csv",
+        "socwatch_summary_path":"\\\\amr.corp.intel.com\\EC\\proj\\pst\\jf\\SPA-Lab\\Shweta\\selKraken\\bigcore8533\\Socwatch\\chromekraken1bigcore8533new.csv"
+    }
+]

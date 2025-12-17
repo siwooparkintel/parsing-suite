@@ -1,0 +1,45 @@
+[
+    {
+        "data_label":"Teams3x3",
+        "condition":"Baseline 15FPS",
+        "data_summary_type": "compact",
+        "power_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3 Baseline\\Power\\idle_desktop_no_minimize_002\\idle_desktop_no_minimize_002\\idle_desktop_no_minimize_002_pacs-summary.csv",
+        "socwatch_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3 Baseline\\Socwatch\\idle_desktop_no_minimize_000\\socwatch\\idle_desktop_no_minimize.csv"
+    },  
+    {
+        "data_label":"Teams3x3",
+        "condition":"15fps + APO (4-tile)",
+        "data_summary_type": "compact",
+        "power_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3 + APO\\Power\\idle_desktop_no_minimize_001\\idle_desktop_no_minimize_001\\idle_desktop_no_minimize_001_pacs-summary.csv",
+        "socwatch_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3 + APO\\socwatch\\idle_desktop_no_minimize_000\\socwatch\\idle_desktop_no_minimize.csv"
+    },   
+    {
+        "data_label":"Teams3x3",
+        "condition":"15fps + APO (4-tile) + IT Stack",
+        "data_summary_type": "compact",
+        "power_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3_APO_ITStack\\power\\Teams3x3_APO_IT-Stack-DC-Bal-3\\Teams3x3_IT-Stack-DC-Bal-3_pacs-summary.csv",
+        "socwatch_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3_APO_ITStack\\socwatch\\teams3x3_APO_ItStack_DCBAl_2\\teams3x3_ItStack_DCBAl_2.csv"
+    },   
+       {
+        "data_label":"Teams3x3",
+        "condition":"15fps + APO (4-tile) + MEPv2 (4MB MSC)",
+        "data_summary_type": "compact",
+        "power_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3 Baseline\\Power\\idle_desktop_no_minimize_002\\idle_desktop_no_minimize_002\\idle_desktop_no_minimize_002_pacs-summary.csv",
+        "socwatch_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3 Baseline\\Socwatch\\idle_desktop_no_minimize_000\\socwatch\\idle_desktop_no_minimize.csv"
+    },   
+    {
+        "data_label":"Teams3x3",
+        "condition":"15fps + APO (4-tile) + MEPv2 (OOB MSC) + IT Stack",
+        "data_summary_type": "compact",
+        "power_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3_APO_MepV2_ITStack\\Power\\Teams3x3_APO_Mepv2_IT-Stack-DC-Bal-1\\Teams3x3_APO_Mepv2_IT-Stack-DC-Bal-1_pacs-summary.csv",
+        "socwatch_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\Teams3x3_APO_MepV2_ITStack\\socwatch\\teams3x3_APO_MepV2_ItStack_DCBAL_2\\teams3x3_APO_MepV2_ItStack_DCBAl_2.csv"
+    },
+    {
+        "data_label":"Teams3x3",
+        "condition":"teams3x3_IT_ProcyonLatest_SS_bgapps_MEPv2_UHX2_APOCPU_1",
+        "data_summary_type": "expanded",
+        "power_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\teams3x3_IT_ProcyonLatest_SS_bgapps_MEPv2_UHX2_APOCPU_1\\power\\Teams3x3_BB_fullworkload_power\\run1\\teams_BB_1\\teams_BB_1_pacs-summary.csv",
+        "socwatch_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\teams3x3_IT_ProcyonLatest_SS_bgapps_MEPv2_UHX2_APOCPU_1\\full_socwatch\\teams3x3_IT_ProcyonSS_bgapps_MEPv2_UHX2_APO_1.csv",
+        "PCIe_socwatch_summary_path":"\\\\wospnp3\\data\\TTL Decomp\\Intel IT\\Teams 3x3\\DC Balanced\\teams3x3_IT_ProcyonLatest_SS_bgapps_MEPv2_UHX2_APOCPU_1\\minimal_socwatch\\teams_IT_ProcyonLatest_BGapps_SS_APOCPU_UHX2_MPEv2_minimal\\teams_IT_ProcyonLatest_BGapps_SS_APOCPU_UHX2_MPEv2_minimal.csv"
+    }
+]

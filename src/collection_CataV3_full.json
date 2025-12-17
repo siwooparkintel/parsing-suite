@@ -1,0 +1,11 @@
+{   
+    "condition":"DC BAL",
+    "data_label":"CataV3+CCA+LCLT+UHX2",
+    "data_summary_type":"expended",
+    "socwatch":"C:\\socwatch\\2025.5.0\\socwatch.exe",
+    "socwatch_first_event_epoch_milli":1754521549852,
+    "selected_etl_folder":"\\\\10.54.63.126\\Pnpext\\Siwoo\\data\\WW2532.2_CataV3ff_test\\web_cataV3ff_si_001",
+    "selected_power_folder":"\\\\10.54.63.126\\Pnpext\\Siwoo\\data\\WW2532.2_CataV3ff_test\\web_cataV3ff_si_002",
+    "selected_socwatch_folder":"\\\\10.54.63.126\\Pnpext\\Siwoo\\data\\WW2532.2_CataV3ff_test\\web_cataV3ff_si_003",
+    "selected_PCIe_folder":"\\\\10.54.63.126\\Pnpext\\Siwoo\\data\\WW2532.2_CataV3ff_test\\web_cataV3ff_si_004"
+}
