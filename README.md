@@ -164,7 +164,7 @@ Complete documentation for each tool is in the [docs](./docs/) folder:
 
 ## Best Known Methods (BKM)
 
-For detailed step-by-step guidance and best practices: [Tool BKM](./tool_BKM.md)
+For detailed step-by-step guidance and best practices, refer to individual parser documentation in the [docs](./docs/) folder.
 
 ## Directory Structure
 
