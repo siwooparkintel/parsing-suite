@@ -5,13 +5,83 @@ import parsers.tools as tools
 import parsers.power_trace_parser as ptp
 
 
+def matches_nested_criteria(block_value, expected_value):
+    """
+    Recursively checks if block_value matches expected_value.
+    Handles nested dictionaries at any depth.
+    
+    Args:
+        block_value: The actual value from the block
+        expected_value: The expected value from the detection criteria
+    
+    Returns:
+        bool: True if values match, False otherwise
+    """
+    # If expected value is a dictionary, recursively check nested structure
+    if isinstance(expected_value, dict):
+        # Block value must also be a dictionary
+        if not isinstance(block_value, dict):
+            return False
+        
+        # Check all keys and values in the expected dictionary
+        for key, nested_expected in expected_value.items():
+            # Key must exist in block value
+            if key not in block_value:
+                return False
+            
+            # Recursively check the nested value
+            if not matches_nested_criteria(block_value[key], nested_expected):
+                return False
+        
+        return True
+    
+    # If expected value is a list, check if it matches (can be extended for more complex list matching)
+    elif isinstance(expected_value, list):
+        if not isinstance(block_value, list):
+            return False
+        return block_value == expected_value
+    
+    # For all other types (str, int, float, bool, None), do direct comparison
+    else:
+        return block_value == expected_value
 
 
-def getTraceObject(hobl_data, DAQ_target) :
+def getTraceObject(hobl_data, picks):
+    """
+    Filters blocks from hobl_data based on detection criteria in picks.
+    Supports multi-level nested dictionary matching.
+    
+    Args:
+        hobl_data: List of data blocks to filter
+        picks: Dictionary containing "inferencing_power_detection" criteria
+    
+    Returns:
+        list: Filtered blocks that match all detection criteria
+    """
     trace_list = list()
-    for block in hobl_data :
-        if "power_obj" in block and block["power_obj"]["picked"] == "picked" and block['power_obj']['power_type'] == "POWER" and "model_output_obj" in block and block["model_output_obj"]["model_output_status"] == "successful" :
+    
+    # Get the detection criteria from picks
+    detection_criteria = picks.get("inferencing_power_detection", {})
+    
+    for block in hobl_data:
+        # Check if all keys and values in detection_criteria match the block
+        match = True
+        
+        for key, expected_value in detection_criteria.items():
+            # Check if the key exists in the block
+            if key not in block:
+                match = False
+                break
+            
+            # Use recursive function to check if values match
+            if not matches_nested_criteria(block[key], expected_value):
+                match = False
+                break
+        
+        # If all criteria match, add the block to the trace list
+        if match:
             trace_list.append(block)
+    
     return trace_list
         
 
@@ -21,11 +91,11 @@ def flatten_trace_data(entry):
     return flattened
         
 
-def reportInferencingOnlyPower(result_path, hobl_data, DAQ_target):
+def reportInferencingOnlyPower(result_path, hobl_data, DAQ_target, picks):
     start_time = time.perf_counter()
 
-    target_blocks = getTraceObject(hobl_data, DAQ_target)
-    ptp.averageInferencingPower(target_blocks, DAQ_target)
+    target_blocks = getTraceObject(hobl_data, picks)
+    ptp.averageInferencingPower(target_blocks, DAQ_target, picks)
     
     infOnlyAdded_dict_list = []
     for entry in target_blocks:

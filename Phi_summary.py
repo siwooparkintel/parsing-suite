@@ -59,7 +59,7 @@ socwatch_targets = [
     {"key": "NPU_Pstate", "lookup": "Neural Processing Unit (NPU) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "1900", "1901-2900", "2901-3899", "3900"]},
     {"key": "MEMSS_Pstate", "lookup": "Memory Subsystem (MEMSS) P-State Summary - Sampled: Approximated Residency (Percentage)"},
     {"key": "NoC_Pstate", "lookup": "Network on Chip (NoC) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["400", "401-1049", "1050"]},
-    {"key": "iGFX_Pstate", "lookup": "Integrated Graphics P-State/Frequency Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "400", "401-1799", "1800-2049", "2050"]}
+    {"key": "iGFX_Pstate", "lookup": "Integrated Graphics P-State/Frequency Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "400", "401-1799", "1800-2499", "2500"]}
 ]
 
 PCIe_targets = [
@@ -102,7 +102,8 @@ DAQ_target = {
 "P_VDD2L":-1,
 "P_V1P8U_MEM":-1,
 "P_SOC+MEMORY":-1,
-"Run Time":-1
+"Run Time":-1,
+"SOC_POWER_RAIL_NAME":"P_SOC+MEMORY"
 }
 
 
@@ -205,10 +206,17 @@ To parse every POWER_SOCWATCH
 ====================================================================================
 '''
 
-picks = {'power_pick':MED, 'inferencingOnlyPower':True, 'sortSimilarData':True}
-
-
-
+picks = {
+        "SOC_POWER_RAIL_NAME":'', "PCORE_POWER_RAIL_NAME":'', "SA_POWER_RAIL_NAME":'', "GT_POWER_RAIL_NAME":'', 
+        'power_pick':MED,
+        'inferencingOnlyPower':True, 
+        'sortSimilarData':True,
+        'inferencing_power_detection':{
+            'power_obj':{'power_type':'SOCWATCH_ETL_POWER'},
+            'model_output_obj':{'model_output_status':'successful'}
+            }
+        }
+tools.parsePowerRailNames(DAQ_target, picks)
 
 
 

@@ -62,6 +62,19 @@ def get_rest_cpu_pstate(rest_dic_list, key, rest_cpu_p_residency_list):
             if key is not tdic:
                 tdic[key] = tryRoundifNumber(rest_cpu_p_residency_list[idx]) # round(float(rest_cpu_p_residency_list[idx]), 2)
 
+def getSocPowerRailName(DAQ_target, picks):
+    soc_power_rail_name = ""
+    soc_list = ["P_SOC", "P_MCP", "P_SOC+MEMORY"]
+    # for loop from the backward order of DAQ_target keys
+    # check the possible soc power rail names if it contains "P_SOC", "P_MCP" or "P_SOC+MEMORY"
+    # make this a list for future expansion
+    # then assign the first found name to soc_power_rail_name   
+    for key in reversed(list(DAQ_target.keys())):
+        if key in soc_list:
+            soc_power_rail_name = key
+            break
+    picks['SOC_POWER_RAIL_NAME'] = soc_power_rail_name
+
 def flatten_model_dic(entry) :
     
     if "model_output_obj" in entry and "model_output_data" in entry["model_output_obj"] :
@@ -76,6 +89,20 @@ def flatten_model_dic(entry) :
     else :
         return {}
 
+def flatten_mlc_output_dic(entry) :
+    
+    if "mlc_output_obj" in entry and "mlc_output_data" in entry["mlc_output_obj"] :
+        copied = entry["mlc_output_obj"]['mlc_output_data'].copy()
+        new_output = dict()
+        for index, key in enumerate(copied):
+            value_list = copied[key]
+            updated_key = key+f" ({value_list[1]})" if value_list[1] != "" else key
+            new_output[updated_key] = value_list[0]
+        new_output['mlc_output_path'] = entry["mlc_output_obj"]["mlc_output_path"]
+        return new_output
+    else :
+        return {}
+    
 def flatten_power_dic(entry, picks):
     if "power_obj" in entry and "power_data" in entry["power_obj"] :
         copied = entry["power_obj"]['power_data'].copy()
@@ -93,6 +120,8 @@ def flatten_trace_dic(entry):
         copied["duration_in_scale"] = entry['trace_obj']['duration_in_scale']
         copied["inf_start"] = entry['trace_obj']['inf_start']
         copied["inf_end"] = entry['trace_obj']['inf_end']
+        copied["Device"] = entry["trace_obj"]["Device"]
+        copied["Token/s"] = entry["model_output_obj"]["model_output_data"]["throughput"][0] if "model_output_obj" in entry and "model_output_data" in entry["model_output_obj"] and "throughput" in entry["model_output_obj"]["model_output_data"] else None
         copied["file_path"] = entry['trace_obj']['file_path']
         return copied
     else :
@@ -169,3 +198,10 @@ def errorAndExit(msgs) :
 
 def replaceSetupfiles() :
     pass
+
+def parsePowerRailNames(DAQ_target, picks):
+    picks["SOC_POWER_RAIL_NAME"] = DAQ_target.get("SOC_POWER_RAIL_NAME")
+    picks["PCORE_POWER_RAIL_NAME"] = DAQ_target.get("PCORE_POWER_RAIL_NAME")
+    picks["SA_POWER_RAIL_NAME"] = DAQ_target.get("SA_POWER_RAIL_NAME")
+    picks["GT_POWER_RAIL_NAME"] = DAQ_target.get("GT_POWER_RAIL_NAME")
+    print("============================= ", picks)

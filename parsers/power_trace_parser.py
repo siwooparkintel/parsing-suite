@@ -1,4 +1,5 @@
 import csv
+import numbers
 import parsers.tools as tools
 
 
@@ -6,6 +7,10 @@ fields = []
 rows = []
 
 AVERAGE = "Average"
+P_SOC = "P_SOC"
+P_CORE = "P_VCCCORE"
+P_GPU = "P_VCCGT"
+P_NPU = "P_VCCSA"
 
 # time buffer to include the whole inferencing duration. 
 # inferencing happening at the end of power collection, 
@@ -89,34 +94,38 @@ def getInferencingStartReversed(target_power_reversed, target_rail, file_path) :
         print("======= not found: ", file_path, target_rail, data_set, step_avr)   
         return None                 
     
-# print("======================================")
 
-def getAveragePowerByRails(csv_list, time_scale, target_obj, total_token_gen) :
+def getAveragePowerByRails(csv_list, time_scale, target_obj, total_token_gen, P_SOC) :
     trace_data = dict()
     for rail in target_obj:
         # print("==== rail name: ", len(csv_list), rail, target_obj[rail])
         rail_idx = target_obj[rail]
         if rail == "Run Time" : 
             trace_data["Run Time"] = round((len(csv_list) * time_scale / 1000), 1) # in seconds 1st floating digit 
-        else :
+        elif isinstance(rail_idx, numbers.Number) :
             rail_list = [float(line[rail_idx]) for line in csv_list]
             # if rail == "P_SOC+MEMORY" :
             #     print(rail, rail_list)
             trace_data[rail] = round(sum(rail_list) / len(csv_list), 3)
             # print("==== ", rail, trace_obj[rail])
             # if rail == "P_SOC+MEMORY" :
+        else :
+            #print("skipping rail: ", rail, rail_idx)
+            pass
 
     # print(trace_obj)
-    trace_data["Energy (J)"] = round(trace_data["Run Time"] * trace_data["P_SOC+MEMORY"], 3)
+    trace_data["Energy (J)"] = round(trace_data["Run Time"] * trace_data[P_SOC], 3)
     trace_data["Eng(J)/Token"] = round(trace_data["Energy (J)"] / total_token_gen, 3)
     return trace_data
 
 
-
-
-def averageInferencingPower(filtered_data, DAQ_target) :
+def averageInferencingPower(filtered_data, DAQ_target, picks) :
     # reading csv file
-
+    P_SOC = picks.get('SOC_POWER_RAIL_NAME')
+    P_CORE = picks.get('PCORE_POWER_RAIL_NAME')
+    P_GPU = picks.get('GT_POWER_RAIL_NAME')
+    P_NPU = picks.get('SA_POWER_RAIL_NAME')
+    
     for block in filtered_data:
 
         if "power_obj" in block and "model_output_obj" in block and block["model_output_obj"]["model_output_status"] == "successful":
@@ -139,16 +148,17 @@ def averageInferencingPower(filtered_data, DAQ_target) :
                 else :
                     infer_duration = block["model_output_obj"]["model_output_data"]["duration"][0] # already in ms
                 
+                
                 device = block["model_output_obj"]["model_output_data"]["device"][0]
                 csv_list = list(csvreader)
                 total_row_num = len(csv_list)
                 # CPU uses P-core for inferencing, so default. 
                 # [Power_rail_name, slope minimum, power delta minimum]
-                target_rail = ["P_VCC_PCORE", 3, 3]
+                target_rail = [P_CORE, 2.4, 3]
                 if "GPU" in device:
-                    target_rail = ["P_VCCGT", 2.24, 2]  # after checking 50 files 
+                    target_rail = [P_GPU, 2.24, 3]  # after checking 50 files 
                 elif "NPU" in device:
-                    target_rail = ["P_VCCSA", 1.77, 1.55] # slope is the main detector for power surge
+                    target_rail = [P_NPU, 2, 2.2] # slope is the main detector for power surge
                 
                 infer_start_idx = -1
                 infer_end_idx = -1
@@ -171,7 +181,7 @@ def averageInferencingPower(filtered_data, DAQ_target) :
                     block["trace_obj"]["inf_start"] = infer_start_idx
                     block["trace_obj"]["inf_end"] = infer_end_idx
                     block["trace_obj"]["Device"] = device
-                    block["trace_obj"]["trace_data"] = getAveragePowerByRails(csv_list[infer_start_idx:infer_end_idx], time_scale, target_obj, block["model_output_obj"]["model_output_data"]["total_token_gen"][0])
+                    block["trace_obj"]["trace_data"] = getAveragePowerByRails(csv_list[infer_start_idx:infer_end_idx], time_scale, target_obj, block["model_output_obj"]["model_output_data"]["total_token_gen"][0], P_SOC)
                     print("========", block["trace_obj"]["trace_data"])
         else :
             # print("[Missing essential data]", )

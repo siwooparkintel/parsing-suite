@@ -21,7 +21,7 @@ def readTextfile(abs_path, AI_parsing_items) :
     with open(abs_path, 'r') as file:
         parsed = dict()
         folder_list = tools.splitLastItem(abs_path, "\\", 1)
-        parsed["device"] = folder_list[1].split("_")[0]
+        parsed["device"] = [folder_list[1].split("_")[0], ""]
         for line in file:
 
             for item in AI_parsing_items:
@@ -42,6 +42,8 @@ def readTextfile(abs_path, AI_parsing_items) :
 
         if "2nd token latency" in parsed and "Inference count" in parsed:
             parsed["duration"] = [parsed["2nd token latency"][0] * parsed["Inference count"][0], "ms"]
+        if "Inference count" in parsed:
+            parsed["total_token_gen"] = [int(parsed["Inference count"][0]), ""]          
         return parsed
 
 

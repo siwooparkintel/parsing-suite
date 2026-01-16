@@ -42,6 +42,8 @@ def parseModelResults(abs_path, AI_parsing_items) :
         device = "GPU"
     elif "NPU" in tools.splitLastItem(abs_path, "\\", 1)[1] :
         device = "NPU"
+    elif "CPU" in tools.splitLastItem(abs_path, "\\", 1)[1] :
+        device = "CPU"
 
     temp['model_output_data']['device'] = [device, ""]
     temp['model_output_data']['throughput'] = temp['model_output_data']['Tokens_per_second'].copy()

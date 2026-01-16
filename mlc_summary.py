@@ -5,8 +5,7 @@ import json
 from os import listdir
 from os.path import isfile, join
 import parsers.tools as tools
-import parsers.bm_llama_output_parser as lop
-import parsers.pcie_socwatch_summary_parser as psoc
+import parsers.mlc_output_parser as mlc
 import parsers.socwatch_summary_parser as soc
 import parsers.power_summary_parser as psp
 import parsers.power_trace_parser as ptp
@@ -15,7 +14,9 @@ import parsers.reporter as rpt
 
 import argparse
 
-parser = argparse.ArgumentParser(prog='AI summary parser')
+
+
+parser = argparse.ArgumentParser(prog='Phi summary parser')
 parser.add_argument('-i', '--input', help='input path. this will be the bese of the summray, will detect all files and folders from that path tree')
 parser.add_argument('-o', '--output', help='output path. location of file and file name')
 parser.add_argument('-d', '--daq', help='DAQ power rail name dictionary')
@@ -26,10 +27,10 @@ parser.add_argument('-hb', '--hobl', action='store_true', help='if the data is c
 args = parser.parse_args()
 print("args: ", args)
 
-
-
 socwatch_targets = [
     {"key": "CPU_model", "lookup": "CPU native model"},
+    {"key": "PCH_SLP50", "lookup": "PCH SLP-S0 State Summary: Residency (Percentage and Time)"},
+    {"key": "S0ix_Substate", "lookup": "S0ix Substate Summary: Residency (Percentage and Time)"},
     {"key": "PKG_Cstate", "lookup": "Platform Monitoring Technology CPU Package C-States Residency Summary: Residency (Percentage and Time)"},
     {"key": "Core_Cstate", "lookup": "Core C-State Summary: Residency (Percentage and Time)"},
     {"key": "Core_Concurrency", "lookup": "CPU Core Concurrency (OS)"},
@@ -48,15 +49,18 @@ socwatch_targets = [
     {"key": "CCE_BW", "lookup": "CCE to Network on Chip (NoC) Bandwidth Summary: Average Rate and Total"},
     {"key": "GT_BW", "lookup": "Chip GT Bandwidth Summary: Average Rate and Total"},
     {"key": "D2D_BW", "lookup": "Chip Die to Die Bandwidth Summary: Average Rate and Total"},
+    {"key": "IDI_BW", "lookup": "Cluster1 Cores Bandwidth Summary: Average Rate and Total"},
     {"key": "CPU_temp", "lookup": "Temperature Metrics Summary - Sampled: Min/Max/Avg"},
     {"key": "SoC_temp", "lookup": "SoC Domain Temperatures Summary - Sampled: Min/Max/Avg"},
     {"key": "NPU_Dstate", "lookup": "Neural Processing Unit (NPU) D-State Residency Summary: Residency (Percentage and Time)"},
+    {"key": "PMC+SLP_S0", "lookup": "PCH Active State (as percentage of PMC Active plus SLP_S0 Time) Summary: Residency (Percentage)"},
+    {"key": "DC_count", "lookup": "Dynamic Display State Enabling"},
     {"key": "Media_Cstate", "lookup": "Media C-State Residency Summary: Residency (Percentage and Time)"},
     {"key": "NPU_Pstate", "lookup": "Neural Processing Unit (NPU) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "1900", "1901-2900", "2901-3899", "3900"]},
     {"key": "MEMSS_Pstate", "lookup": "Memory Subsystem (MEMSS) P-State Summary - Sampled: Approximated Residency (Percentage)"},
+    {"key": "NoC_Pstate", "lookup": "Network on Chip (NoC) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["400", "401-1049", "1050"]},
     {"key": "iGFX_Pstate", "lookup": "Integrated Graphics P-State/Frequency Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "400", "401-1799", "1800-2049", "2050"]}
 ]
-
 
 PCIe_targets = [
     {"key": "PCIe_LPM", "devices":["NVM"], "lookup": "PCIe LPM Summary - Sampled: Approximated Residency (Percentage)"},
@@ -64,13 +68,13 @@ PCIe_targets = [
     {"key": "PCIe_LTRsnoop", "devices":["NVM"], "lookup": "PCIe LTR Snoop Summary - Sampled: Histogram"}
 ]
 
-
-BM_parsing_items = [
-    {"key": "Pipeline init time", "lookup": "[ INFO ] Pipeline initialization time: ", "unit":"s"},
-    {"key": "Inference count", "lookup": "inference count: ", "unit":""},
-    {"key": "Average", "lookup": "[ INFO ] [Average] P[", "unit":"string"}
+AI_parsing_items = [
+    {"key": "MLC_ver", "lookup": "Intel(R) Memory Latency Checker - ", "unit":"ver."},
+    {"key": "full_params", "lookup": "Command line parameters: ", "unit":""},
+    {"key": "read_buffer", "lookup": "Using buffer size of ", "unit":"MiB/thread"},
+    {"key": "write_buffer", "lookup": "for reads and an additional ", "unit":"MiB/thread"}
 ]
-
+"for reads and an additional"
 
 DAQ_target = {
 "P_SSD":-1,
@@ -97,35 +101,28 @@ DAQ_target = {
 "P_VDD2L":-1,
 "P_V1P8U_MEM":-1,
 "P_SOC+MEMORY":-1,
-"Run Time":-1,
-"SOC_POWER_RAIL_NAME": "P_SOC+MEMORY",
-"PCORE_POWER_RAIL_NAME":"P_VCC_PCORE",
-"SA_POWER_RAIL_NAME":"P_VCCSA",
-"GT_POWER_RAIL_NAME":"P_VCCGT"
+"Run Time":-1
 }
+
 
 
 CL_UNCLASSIFIED = "unclassified"
 CL_ETL = ".etl"
-CL_OUTPUT = 'PU_llama'
+CL_OUTPUT = 'MLC_375000_'
 CL_SOCWATCH = 'Session.etl'
-CL_SOCWATCH_CSV = "socwatch.csv"
 CL_AI_MODEL = '_qdq_proxy_'
 CL_DAQ_SUMMARY = 'pacs-summary.csv'
 CL_DAQ_TRACES = 'pacs-traces'
 CL_PASS = ".PASS"
-CL_FAIL = ".FAIL"
 
 ETL = "ETL"
 POWER = "POWER"
 SOCWATCH = "SOCWATCH"
-PCIE = "PCIE"
 MODEL_OUTPUT = "MODEL_OUTPUT"
 MIN = "MIN"
 MAX = "MAX"
 MED = "MED"
 
-second_folder_list = [ETL, POWER, SOCWATCH, PCIE]
 
 
 path_splitter = "\\"
@@ -137,7 +134,7 @@ def replaceSplitter(Abs_path) :
 
 
 BASE = args.input
-result_csv = args.output
+result_path = args.output
 # Get script directory for relative paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -184,39 +181,38 @@ else :
 
 print("===== args hobl: ", args.hobl)
 
-if result_csv == None : 
-    result_csv = f"{BASE}\\parseAll"
-
-
+if result_path == None : 
+    result_path = f"{BASE}\\mlc_summary"
 
 
 hobl_sets = list()
 
 file_num = 0
 
+'''
+====================================================================================
+To parse everything: 
 
+
+To parse everything picked by power_pick (MIN, MAX, Median)
+
+
+To parse only median picked power
+
+
+To parse every POWER_SOCWATCH
+
+====================================================================================
+'''
 
 picks = {
         "SOC_POWER_RAIL_NAME":'', "PCORE_POWER_RAIL_NAME":'', "SA_POWER_RAIL_NAME":'', "GT_POWER_RAIL_NAME":'', 
         'power_pick':MED,
         'inferencingOnlyPower':True, 
         'sortSimilarData':True,
-        'inferencing_power_detection':{
-            'power_obj':{'power_type':'SOCWATCH_ETL_POWER'},
-            'model_output_obj':{'model_output_status':'successful'}
-            }
         }
 tools.parsePowerRailNames(DAQ_target, picks)
 
-
-"""
-This is the default detection criteria for inferencing only power detection
-'inferencing_power_detection':
-{
-            'power_obj':{'picked':'picked', 'power_type':'POWER'},
-            'model_output_obj':{'model_output_status':'successful'}
-            }
-"""
 
 
 
@@ -227,14 +223,13 @@ This is the default detection criteria for inferencing only power detection
 # it returns grand parent folder name
 #=========================================================================
 def getDatasetLabel(abs_path) :
-    folder_list = abs_path.split("\\")
-    folder_structure_detector = abs_path.split("\\")[:-1]
-    last_folder = folder_structure_detector[-1]
-    sl_upper = last_folder.upper()
-    if sl_upper in second_folder_list:
-        return [folder_list[-4], folder_list[-3]]
-    else :
+    folder_list = abs_path.split("\\")[:-1]
+    last = folder_list[-1]
+    last_lower = last.lower()
+    if last_lower == 'etl' or last_lower == 'power' or last_lower == 'socwatch':
         return [folder_list[-3], folder_list[-2]]
+    else :
+        return [folder_list[-2], folder_list[-1]]
 
 def createDataset(abs_path) :
     # print("[abs_path] ", abs_path)
@@ -251,13 +246,14 @@ def pullData(abs_path) :
     return None
 
 def calFromPowerModel(block) :
+    
     if 'power_obj' in block and 'model_output_obj' in block :
         if 'power_data' in block['power_obj'] and block['model_output_obj']['model_output_status'] != "failed" and 'model_output_data' in block['model_output_obj']:
-            # calculate 'Eng(J)/Frame' here
-            block['power_obj']['power_data']['Eng(J)/Frame'] = block['power_obj']['power_data']['Energy (J)'] / block['model_output_obj']['model_output_data']['throughput'][0]
+            # calculate 'Eng(J)/Token' here
+            block['power_obj']['power_data']['Eng(J)/Token'] = block['power_obj']['power_data']['Energy (J)'] / block['model_output_obj']['model_output_data']['total_token_gen'][0]
         else :
             # tools.errorAndExit("===error in claFromPowerModel===" + str(block))
-            block['power_obj']['power_data']['Eng(J)/Frame'] = "n/a"
+            block['power_obj']['power_data']['Eng(J)/Token'] = "n/a"
 
 def add_etl(abs_path):
     path_set = tools.splitLastItem(abs_path, "\\", 1)
@@ -268,13 +264,13 @@ def add_etl(abs_path):
         dataset["data_type"].insert(0, ETL)
     dataset["etl_path"] = abs_path
 
-def add_model_output(abs_path):
+def add_mlc_output(abs_path):
     path_set = tools.splitLastItem(abs_path, "\\", 1)
     dataset = pullData(path_set[0])
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-    dataset["model_output_obj"] = lop.parseModelResults(abs_path, BM_parsing_items)
-    # calFromPowerModel(dataset)
+    dataset["mlc_output_obj"] = mlc.parseMlcResults(abs_path, AI_parsing_items)
+    calFromPowerModel(dataset)
     global file_num
     file_num += 1
 
@@ -286,7 +282,7 @@ def add_power(abs_path):
     if POWER not in dataset["data_type"] :
         dataset["data_type"].append(POWER)
     dataset["power_obj"] = psp.parsePowerSummaryCSV(abs_path, DAQ_target)
-    # calFromPowerModel(dataset)
+    calFromPowerModel(dataset)
     global file_num
     file_num += 1
 
@@ -310,30 +306,19 @@ def add_socwatch(abs_path):
     global file_num
     file_num += 1
 
-def add_pcie_only(abs_path):
-    path_set = tools.splitLastItem(abs_path, "\\", 1)
-    dataset = pullData(path_set[0])
-    if dataset == None:
-        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-    if PCIE not in dataset["data_type"] :
-        dataset["data_type"].insert(0, PCIE)
-    dataset["pcie_socwatch_obj"] = psoc.parsePCIe(abs_path, PCIe_targets)
-    global file_num
-    file_num += 1
-
 
 def fileClassifier(abs_path, f):
 
     file_type = CL_UNCLASSIFIED
     
-    if args.hobl == True and (f == CL_PASS or f == CL_FAIL):
+    if f == CL_PASS :
         createDataset(tools.splitLastItem(abs_path, "\\", 1)[0])
     elif f.find(CL_ETL) >= 0 and f.find(CL_SOCWATCH) == -1 : 
         # print("ETL detected ", abs_path, f)
         add_etl(abs_path)
         file_type = CL_ETL
     elif f.find(CL_OUTPUT) >= 0 :
-        add_model_output(abs_path)
+        add_mlc_output(abs_path)
         file_type = CL_OUTPUT
     elif f.find(CL_DAQ_SUMMARY) >= 0:
         add_power(abs_path)
@@ -346,26 +331,16 @@ def fileClassifier(abs_path, f):
         upto_path = tools.splitLastItem(abs_path, "\\", 1)[0]
         soc_summary = workload_name + ".csv"
         summary_fullPath = os.path.join(upto_path, soc_summary)
-        osSession_fullPath = os.path.join(upto_path, workload_name+"_osSession.etl")
-        if os.path.exists(summary_fullPath) and os.path.exists(osSession_fullPath):
+        if os.path.exists(summary_fullPath) :
             add_socwatch(summary_fullPath)
-            file_type = CL_SOCWATCH
-        elif os.path.exists(summary_fullPath) and not os.path.exists(osSession_fullPath):
-            add_pcie_only(summary_fullPath)
-            file_type = CL_SOCWATCH
         else :
-            print("===== No Socwatch summary, Socwatch post-process may have interrupted or socwatch summary file name has altered", abs_path)
-        
-    elif f.lower().find(CL_SOCWATCH_CSV) >= 0:
-        # file_size = os.path.getsize(abs_path)
-        add_socwatch(abs_path)
-        file_type = CL_SOCWATCH_CSV
+            print("===== No Socwatch summary, Socwatch post-process may have interrupted", abs_path)
+        file_type = CL_SOCWATCH
     return file_type
 
 
 def detectAndParseFile(path) :
 
-    # listdir gives back all file system list, including file and folder
     for f in os.listdir(path):
         abs_path = os.path.join(path, f)
         # if f == "Model_A3_v1_2_3_qdq_proxy_stripped":
@@ -375,37 +350,20 @@ def detectAndParseFile(path) :
             if fType == CL_SOCWATCH :
                 # after detecting first Socwatch ETL, and it's summary, no need to go further
                 break
-        elif f != "MSTeamsLogs" and f != "Training":
-            # only creates data set if not collected through HOBL. 
-            if args.hobl == None or args.hobl == False:
-                path_sliced = tools.splitLastItem(abs_path, "\\", 1)
-                last_folder = path_sliced[1].upper()
-                if last_folder not in second_folder_list and (pullData(abs_path) == None) :
-                    createDataset(abs_path)
+        else:
             #recursive on a folder detection
             detectAndParseFile(abs_path)
 
 def main():
-
+    tools.getSocPowerRailName(DAQ_target, picks)
     detectAndParseFile(BASE)
     pck.checkAndMarkPower(hobl_sets, picks)
-    print("====[hobl_sets]", hobl_sets)
-    rpt.writeParsedAllInExcel(result_csv, hobl_sets, socwatch_targets, PCIe_targets, picks)
-    rpt.writeInferenceOnlyInExcel(result_csv, hobl_sets, DAQ_target, picks)
-    # it is not detecting NPU and GPU inferencing only power on the folder of
-    # \\10.54.63.126\Pnpext\Siwoo\data\WW2537.2_Llama3.1_xPU
-    # rpt.writeInferenceOnlyInExcel(result_csv, hobl_sets, DAQ_target)
-
+    # print("====[hobl_sets]", hobl_sets)
+    rpt.writeParsedMLC(result_path, hobl_sets, socwatch_targets, PCIe_targets, picks)
 
 start_time = time.perf_counter()
 main()
 end_time = time.perf_counter()
 elapsed_time = end_time - start_time
 print(f"Parsing {file_num} files Successful! [Elapsed time:::] {elapsed_time} seconds")
-
-
-
-
-
-
 

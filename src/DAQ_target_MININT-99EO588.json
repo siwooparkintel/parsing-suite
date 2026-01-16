@@ -24,5 +24,6 @@
     "P_VBATA":-1,
     "P_SOC+MEMORY":-1,
     "P_MEMORY":-1,
-    "Run Time":-1
+    "Run Time":-1,
+    "SOC_POWER_RAIL_NAME":"P_SOC+MEMORY"
 }

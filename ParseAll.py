@@ -29,6 +29,8 @@ print("args: ", args)
 
 """
 
+
+
 socwatch_targets = [
     {"key": "CPU_model", "lookup": "CPU native model"},
     {"key": "PCH_SLP50", "lookup": "PCH SLP-S0 State Summary: Residency (Percentage and Time)"},
@@ -121,6 +123,8 @@ MIN = "MIN"
 MAX = "MAX"
 MED = "MED"
 
+
+
 second_folder_list = [ETL, POWER, SOCWATCH, PCIE]
 
 
@@ -195,8 +199,17 @@ hobl_sets = list()
 file_num = 0
 
 
-
-picks = {'power_pick':MED, 'inferencingOnlyPower':False, 'sortSimilarData':False}
+picks = {
+        "SOC_POWER_RAIL_NAME":'', "PCORE_POWER_RAIL_NAME":'', "SA_POWER_RAIL_NAME":'', "GT_POWER_RAIL_NAME":'', 
+        'power_pick':MED,
+        'inferencingOnlyPower':True, 
+        'sortSimilarData':True,
+        'inferencing_power_detection':{
+            'power_obj':{'power_type':'SOCWATCH_ETL_POWER'},
+            'model_output_obj':{'model_output_status':'successful'}
+            }
+        }
+tools.parsePowerRailNames(DAQ_target, picks)
 
 
 
@@ -380,7 +393,7 @@ def detectAndParseFile(path) :
 
 
 def main():
-
+    tools.getSocPowerRailName(DAQ_target, picks)
     detectAndParseFile(BASE)
     pck.checkAndMarkPower(hobl_sets, picks)
     print("====[hobl_sets]", hobl_sets)

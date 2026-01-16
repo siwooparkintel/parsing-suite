@@ -1,4 +1,5 @@
 import math
+import parsers.tools as tools
 
 
 
@@ -23,27 +24,46 @@ def markPicked(list, PICKED):
 
 
 def sortAndPick(objs, picks) :
-    etls = list()
-    powers = list()
-    socwatches = list()
+    data_types = dict()
 
+    #etls = list()
+    #powers = list()
+    #socwatches = list()
+    soc_power_rail_name = picks.get('SOC_POWER_RAIL_NAME', None)
+
+    tools.errorAndExit("[Error:::] SOC Power Rail name is not provided in picks.") if soc_power_rail_name is None or soc_power_rail_name == "" else None
+
+    # this data_type can be dynamic.
+    # collect the same data_type objects together and pick the data among them  
     for obj in objs :
-        dtype = obj["data_type"]
-        if "ETL" in dtype and "POWER" in dtype:
-            # if len(etls) > 0 and etls[leg(etls)]
-            etls.append(obj)
-        elif "SOCWATCH" in dtype and "POWER" in dtype:
-            socwatches.append(obj)
-        elif "POWER" in dtype:
-            powers.append(obj)
+        dtype = obj["power_obj"]["power_type"]
+        dtype_key = "_".join(obj["data_label"])+"_"+dtype
+        if dtype_key in data_types:
+            data_types[dtype_key].append(obj)
+        else :
+            data_types[dtype_key] = [obj]
 
-    sorted_etls = sorted(etls, key=lambda x: x["power_obj"]["power_data"]['P_SOC+MEMORY'])
-    sorted_powers = sorted(powers, key=lambda x: x["power_obj"]["power_data"]['P_SOC+MEMORY'])
-    sorted_socwatches = sorted(socwatches, key=lambda x: x["power_obj"]["power_data"]['P_SOC+MEMORY'])
+    for dtype in data_types :    
+        items = data_types[dtype]
+        sorted_items = sorted(items, key=lambda x: x["power_obj"]["power_data"][soc_power_rail_name])
+        markPicked(sorted_items, picks['power_pick'])
 
-    markPicked(sorted_etls, picks['power_pick'])
-    markPicked(sorted_powers, picks['power_pick'])
-    markPicked(sorted_socwatches, picks['power_pick'])
+    
+    # if "ETL" in dtype and "POWER" in dtype:
+    #     # if len(etls) > 0 and etls[leg(etls)]
+    #     etls.append(obj)
+    # elif "SOCWATCH" in dtype and "POWER" in dtype:
+    #     socwatches.append(obj)
+    # elif "POWER" in dtype:
+    #     powers.append(obj)
+
+    # sorted_etls = sorted(etls, key=lambda x: x["power_obj"]["power_data"][soc_power_rail_name])
+    # sorted_powers = sorted(powers, key=lambda x: x["power_obj"]["power_data"][soc_power_rail_name])
+    # sorted_socwatches = sorted(socwatches, key=lambda x: x["power_obj"]["power_data"][soc_power_rail_name])
+
+    # markPicked(sorted_etls, picks['power_pick'])
+    # markPicked(sorted_powers, picks['power_pick'])
+    # markPicked(sorted_socwatches, picks['power_pick'])
 
 
     # sort working. commented out reverse also working
