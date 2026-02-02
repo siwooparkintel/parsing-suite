@@ -1,6 +1,6 @@
 [
     {"key": "CPU_model", "lookup": "CPU native model"},
-    {"key": "PCH_SLP50", "lookup": "PCH SLP-S0 State Summary: Residency (Percentage and Time)"},
+    {"key": "PCD_SLPS0", "lookup": "PCD SLP-S0 State Summary: Residency (Percentage and Time)"},
     {"key": "S0ix_Substate", "lookup": "S0ix Substate Summary: Residency (Percentage and Time)"},
     {"key": "PKG_Cstate", "lookup": "Platform Monitoring Technology CPU Package C-States Residency Summary: Residency (Percentage and Time)"},
     {"key": "Core_Cstate", "lookup": "Core C-State Summary: Residency (Percentage and Time)"},
@@ -23,10 +23,10 @@
     {"key": "CPU_temp", "lookup": "Temperature Metrics Summary - Sampled: Min/Max/Avg"},
     {"key": "SoC_temp", "lookup": "SoC Domain Temperatures Summary - Sampled: Min/Max/Avg"},
     {"key": "NPU_Dstate", "lookup": "Neural Processing Unit (NPU) D-State Residency Summary: Residency (Percentage and Time)"},
-    {"key": "PMC+SLP_S0", "lookup": "PCH Active State (as percentage of PMC Active plus SLP_S0 Time) Summary: Residency (Percentage)"},
+    {"key": "PMC+SLP_S0", "lookup": "PCD Active State (as percentage of PMC Active plus SLP_S0 Time) Summary: Residency (Percentage)"},
     {"key": "DC_count", "lookup": "Dynamic Display State Enabling"},
     {"key": "Media_Cstate", "lookup": "Media C-State Residency Summary: Residency (Percentage and Time)"},
-    {"key": "NPU_Pstate", "lookup": "Neural Processing Unit (NPU) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "1900", "1901-2599", "2600"]},
+    {"key": "NPU_Pstate", "lookup": "Neural Processing Unit (NPU) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "1900", "1901-2300", "2301-2599", "2600-2999", "3000-3499", "3500-3899", "3900"]},
     {"key": "MEMSS_Pstate", "lookup": "Memory Subsystem (MEMSS) P-State Summary - Sampled: Approximated Residency (Percentage)"},
     {"key": "NoC_Pstate", "lookup": "Network on Chip (NoC) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["550", "551-1199", "1200"]},
     {"key": "iGFX_Pstate", "lookup": "Integrated Graphics P-State/Frequency Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "1-999", "1000-1799", "1800-2499", "2500"]}
