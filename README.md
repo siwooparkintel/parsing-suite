@@ -17,6 +17,7 @@ A comprehensive framework for parsing and analyzing diverse workload performance
 | **bm_llama_parser.py** | Llama model analysis | [Details](./docs/llama-parser.md) |
 | **SA_ETL_first_epoch.py** | ETL first-epoch analysis | [Details](./docs/sa-etl-first-epoch.md) |
 | **trace_power_slicer.py** | Power trace slicer by rails and time ranges | [Details](./docs/README_trace_slicer.md) |
+| **swjson_parser.py** | Socwatch JSON event analyzer with visualization | [Details](./docs/SWJSON_PARSER_USAGE.md) |
 
 ## Quick Start
 
@@ -59,12 +60,20 @@ python trace_power_slicer.py <trace_file> --config src/trace_slicer.config -o <o
 python trace_power_slicer.py
 ```
 
+**For Socwatch JSON analysis:**
+```bash
+python swjson_parser.py -i <swjson_file> -e "Event Name 1" "Event Name 2"
+# Or interactive mode with file dialog:
+python swjson_parser.py
+```
+
 ### 3. Detailed Guidance
 
 - **New users**: Start with [ParseAll documentation](./docs/parseall.md)
 - **Advanced workflows**: See [Collection_Parser documentation](./docs/collection-parser.md)
 - **Model-specific analysis**: Review [Phi_summary](./docs/phi-summary.md) or [Llama parser](./docs/llama-parser.md)
 - **Power trace slicing**: See [trace_power_slicer](./docs/README_trace_slicer.md) for workload analysis
+- **Socwatch JSON analysis**: See [swjson_parser](./docs/SWJSON_PARSER_USAGE.md) for event visualization
 - **Best practices**: Review individual parser documentation in [docs](./docs/) folder
 
 ## Supported Data Types
@@ -171,6 +180,7 @@ Complete documentation for each tool is in the [docs](./docs/) folder:
 - [Llama Parser Guide](./docs/llama-parser.md)
 - [SA ETL First Epoch Guide](./docs/sa-etl-first-epoch.md)
 - [Trace Power Slicer Guide](./docs/README_trace_slicer.md)
+- [Socwatch JSON Parser Guide](./docs/SWJSON_PARSER_USAGE.md)
 
 ## Best Known Methods (BKM)
 
@@ -187,6 +197,7 @@ parsing-suite/
 ├── bm_llama_parser.py               # Llama model parser
 ├── SA_ETL_first_epoch.py            # ETL analysis
 ├── trace_power_slicer.py            # Power trace slicer
+├── swjson_parser.py                 # Socwatch JSON analyzer
 ├── requirements.txt                 # Python dependencies
 ├── docs/                            # Detailed documentation
 │   ├── parseall.md
@@ -195,7 +206,8 @@ parsing-suite/
 │   ├── catapultv3-full-parser.md
 │   ├── llama-parser.md
 │   ├── sa-etl-first-epoch.md
-│   └── README_trace_slicer.md
+│   ├── README_trace_slicer.md
+│   └── SWJSON_PARSER_USAGE.md
 ├── parsers/                         # Shared parser modules
 ├── src/                             # Configuration and source data
 ├── tools/                           # Utility functions
