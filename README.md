@@ -16,6 +16,7 @@ A comprehensive framework for parsing and analyzing diverse workload performance
 | **CatapultV3_Full_Parser.py** | Full platform profiling | [Details](./docs/catapultv3-full-parser.md) |
 | **bm_llama_parser.py** | Llama model analysis | [Details](./docs/llama-parser.md) |
 | **SA_ETL_first_epoch.py** | ETL first-epoch analysis | [Details](./docs/sa-etl-first-epoch.md) |
+| **trace_power_slicer.py** | Power trace slicer by rails and time ranges | [Details](./docs/README_trace_slicer.md) |
 
 ## Quick Start
 
@@ -51,11 +52,19 @@ python CatapultV3_Full_Parser.py [options]
 python Phi_summary.py -i <input_path> -o <output_path>
 ```
 
+**For power trace slicing:**
+```bash
+python trace_power_slicer.py <trace_file> --config src/trace_slicer.config -o <output_dir>
+# Or interactive mode with file dialog:
+python trace_power_slicer.py
+```
+
 ### 3. Detailed Guidance
 
 - **New users**: Start with [ParseAll documentation](./docs/parseall.md)
 - **Advanced workflows**: See [Collection_Parser documentation](./docs/collection-parser.md)
 - **Model-specific analysis**: Review [Phi_summary](./docs/phi-summary.md) or [Llama parser](./docs/llama-parser.md)
+- **Power trace slicing**: See [trace_power_slicer](./docs/README_trace_slicer.md) for workload analysis
 - **Best practices**: Review individual parser documentation in [docs](./docs/) folder
 
 ## Supported Data Types
@@ -161,6 +170,7 @@ Complete documentation for each tool is in the [docs](./docs/) folder:
 - [CatapultV3_Full_Parser Guide](./docs/catapultv3-full-parser.md)
 - [Llama Parser Guide](./docs/llama-parser.md)
 - [SA ETL First Epoch Guide](./docs/sa-etl-first-epoch.md)
+- [Trace Power Slicer Guide](./docs/README_trace_slicer.md)
 
 ## Best Known Methods (BKM)
 
@@ -176,6 +186,7 @@ parsing-suite/
 ├── CatapultV3_Full_Parser.py        # Platform profiler
 ├── bm_llama_parser.py               # Llama model parser
 ├── SA_ETL_first_epoch.py            # ETL analysis
+├── trace_power_slicer.py            # Power trace slicer
 ├── requirements.txt                 # Python dependencies
 ├── docs/                            # Detailed documentation
 │   ├── parseall.md
@@ -183,7 +194,8 @@ parsing-suite/
 │   ├── collection-parser.md
 │   ├── catapultv3-full-parser.md
 │   ├── llama-parser.md
-│   └── sa-etl-first-epoch.md
+│   ├── sa-etl-first-epoch.md
+│   └── README_trace_slicer.md
 ├── parsers/                         # Shared parser modules
 ├── src/                             # Configuration and source data
 ├── tools/                           # Utility functions
