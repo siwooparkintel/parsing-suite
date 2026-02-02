@@ -173,12 +173,18 @@ def bucketizedTable(table, keyIdx, ValueIdx, buckets) :
         if "_Pstate" in table['label'] and idx > 0:
             key = key.split(".")[0]
         data[key] = line[ValueIdx]
-        
+        """
+        Change this to accumulate all values that larger than the last bucket, should be included in the last bucket
+        e.g.  if the buckets are [ 5, 6-10, 11-20, 21], and the key is 25, it should be included in the '21' bucket
+        elif len(ranges) == 1 and int(bucket) <= int(key) :
+        """
         if idx > 0 :
             for bucket in bucketized :
                 ranges = bucket.split("-")
                 if len(ranges) == 1 and bucket == key :
                     bucketized[bucket] = float(line[ValueIdx])
+                elif len(ranges) == 1 and int(key) > int(ranges[0]) and bucket == buckets[-1]:
+                    bucketized[bucket] = bucketized[bucket] + float(line[ValueIdx]) 
                 elif len(ranges) == 2:
                     min = int(ranges[0])
                     max = int(ranges[1])

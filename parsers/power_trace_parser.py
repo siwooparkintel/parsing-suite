@@ -154,11 +154,11 @@ def averageInferencingPower(filtered_data, DAQ_target, picks) :
                 total_row_num = len(csv_list)
                 # CPU uses P-core for inferencing, so default. 
                 # [Power_rail_name, slope minimum, power delta minimum]
-                target_rail = [P_CORE, 2.4, 3]
-                if "GPU" in device:
-                    target_rail = [P_GPU, 2.24, 3]  # after checking 50 files 
-                elif "NPU" in device:
-                    target_rail = [P_NPU, 2, 2.2] # slope is the main detector for power surge
+                target_rail = [P_CORE, 2.3, 3]
+                # if "GPU" in device:
+                #     target_rail = [P_GPU, 2.24, 3]  # after checking 50 files 
+                # elif "NPU" in device:
+                #     target_rail = [P_NPU, 1.7, 1] # slope is the main detector for power surge
                 
                 infer_start_idx = -1
                 infer_end_idx = -1
