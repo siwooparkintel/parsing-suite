@@ -2,6 +2,7 @@
 import os
 import time
 import json
+from pathlib import Path
 from os import listdir
 from os.path import isfile, join
 import parsers.tools as tools
@@ -25,84 +26,6 @@ parser.add_argument('-hb', '--hobl', action='store_true', help='if the data is c
 args = parser.parse_args()
 print("args: ", args)
 
-"""
-
-"""
-
-
-
-socwatch_targets = [
-    {"key": "CPU_model", "lookup": "CPU native model"},
-    {"key": "PCH_SLP50", "lookup": "PCH SLP-S0 State Summary: Residency (Percentage and Time)"},
-    {"key": "S0ix_Substate", "lookup": "S0ix Substate Summary: Residency (Percentage and Time)"},
-    {"key": "PKG_Cstate", "lookup": "Platform Monitoring Technology CPU Package C-States Residency Summary: Residency (Percentage and Time)"},
-    {"key": "Core_Cstate", "lookup": "Core C-State Summary: Residency (Percentage and Time)"},
-    {"key": "Core_Concurrency", "lookup": "CPU Core Concurrency (OS)"},
-    {"key": "ACPI_Cstate", "lookup": "Core C-State (OS) Summary: Residency (Percentage and Time)"},
-    {"key": "OS_wakeups", "lookup": "Processes by Platform Busy Duration"},
-    {"key": "CPU-iGPU", "lookup": "CPU-iGPU Concurrency Summary: Residency (Percentage and Time)"},
-    {"key": "CPU_Pavr", "lookup": "CPU P-State Average Frequency (excluding CPU idle time)"},
-    {"key": "CPU_Pstate", "lookup": "CPU P-State/Frequency Summary: Residency (Percentage and Time)"},
-    {"key": "RC_Cstate", "lookup": "Integrated Graphics C-State  Summary: Residency (Percentage and Time)"},
-    {"key": "DDR_BW", "lookup": "DDR Bandwidth Requests by Component Summary: Average Rate and Total"},
-    {"key": "IO_BW", "lookup": "IO Bandwidth Summary: Average Rate and Total"},
-    {"key": "VC1_BW", "lookup": "Display VC1 Bandwidth Summary: Average Rate and Total"},
-    {"key": "NPU_BW", "lookup": "Neural Processing Unit (NPU) to Memory Bandwidth Summary: Average Rate and Total"},
-    {"key": "Media_BW", "lookup": "Media to Network on Chip (NoC) Bandwidth Summary: Average Rate and Total"},
-    {"key": "IPU_BW", "lookup": "Image Processing Unit (IPU) to Network on Chip (NoC) Bandwidth Summary: Average Rate and Total"},
-    {"key": "CCE_BW", "lookup": "CCE to Network on Chip (NoC) Bandwidth Summary: Average Rate and Total"},
-    {"key": "GT_BW", "lookup": "Chip GT Bandwidth Summary: Average Rate and Total"},
-    {"key": "D2D_BW", "lookup": "Chip Die to Die Bandwidth Summary: Average Rate and Total"},
-    {"key": "IDI_BW", "lookup": "Cluster1 Cores Bandwidth Summary: Average Rate and Total"},
-    {"key": "CPU_temp", "lookup": "Temperature Metrics Summary - Sampled: Min/Max/Avg"},
-    {"key": "SoC_temp", "lookup": "SoC Domain Temperatures Summary - Sampled: Min/Max/Avg"},
-    {"key": "NPU_Dstate", "lookup": "Neural Processing Unit (NPU) D-State Residency Summary: Residency (Percentage and Time)"},
-    {"key": "PMC+SLP_S0", "lookup": "PCH Active State (as percentage of PMC Active plus SLP_S0 Time) Summary: Residency (Percentage)"},
-    {"key": "DC_count", "lookup": "Dynamic Display State Enabling"},
-    {"key": "Media_Cstate", "lookup": "Media C-State Residency Summary: Residency (Percentage and Time)"},
-    {"key": "NPU_Pstate", "lookup": "Neural Processing Unit (NPU) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "1900", "1901-2900", "2901-3899", "3900"]},
-    {"key": "MEMSS_Pstate", "lookup": "Memory Subsystem (MEMSS) P-State Summary - Sampled: Approximated Residency (Percentage)"},
-    {"key": "NoC_Pstate", "lookup": "Network on Chip (NoC) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["400", "401-1049", "1050"]},
-    {"key": "iGFX_Pstate", "lookup": "Integrated Graphics P-State/Frequency Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "400", "401-1799", "1800-2049", "2050"]}
-]
-
-
-PCIe_targets = [
-    {"key": "PCIe_LPM", "devices":["NVM"], "lookup": "PCIe LPM Summary - Sampled: Approximated Residency (Percentage)"},
-    {"key": "PCIe_Active", "devices":["NVM"], "lookup": "PCIe Link Active Summary - Sampled: Approximated Residency (Percentage)"},
-    {"key": "PCIe_LTRsnoop", "devices":["NVM"], "lookup": "PCIe LTR Snoop Summary - Sampled: Histogram"}
-]
-
-
-DAQ_target = {
-"P_SSD":-1,
-"V_VAL_VCC_PCORE":-1,
-"I_VAL_VCC_PCORE":-1,
-"V_VAL_VCC_ECORE":-1,
-"I_VAL_VCC_ECORE":-1,
-"V_VAL_VCCSA":-1,
-"I_VAL_VCCSA":-1,
-"V_VAL_VCCGT":-1,
-"I_VAL_VCCGT":-1,
-"P_VCC_PCORE":-1,
-"P_VCC_ECORE":-1,
-"P_VCCSA":-1,
-"P_VCCGT":-1,
-"P_VCCL2":-1,
-"P_VCC1P8":-1,
-"P_VCCIO":-1,
-"P_VCCDDRIO":-1,
-"P_VNNAON":-1,
-"P_VNNAONLV":-1,
-"P_VDDQ":-1,
-"P_VDD2H":-1,
-"P_VDD2L":-1,
-"P_V1P8U_MEM":-1,
-"P_SOC+MEMORY":-1,
-"Run Time":-1
-}
-
-
 CL_UNCLASSIFIED = "unclassified"
 CL_ETL = ".etl"
 CL_OUTPUT = '_output.txt'
@@ -123,9 +46,34 @@ MIN = "MIN"
 MAX = "MAX"
 MED = "MED"
 
+#BASE = os.getcwd()
+# BASE = "\\\\10.54.63.126\\Pnpext\\Siwoo\\WW17.1_LNL32_ov20252\\test_data"
+BASE = args.input
+result_csv = args.output
+# Get script directory for relative paths
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-second_folder_list = [ETL, POWER, SOCWATCH, PCIE]
+hobl_sets = list()
+picks = {
+        "SOC_POWER_RAIL_NAME":'', "PCORE_POWER_RAIL_NAME":'', "SA_POWER_RAIL_NAME":'', "GT_POWER_RAIL_NAME":'', 
+        'power_pick':MED,
+        'inferencingOnlyPower':True, 
+        'sortSimilarData':True,
+        'inferencing_power_detection':{
+            'power_obj':{'power_type':'SOCWATCH_ETL_POWER'},
+            'model_output_obj':{'model_output_status':'successful'}
+            }
+        }
+
+config_json = tools.jsonLoader(SCRIPT_DIR, "PTL_default_config.json", picks)
+
+socwatch_targets = config_json["socwatch_targets"]
+PCIe_targets = config_json["PCIe_targets"]
+DAQ_target = config_json["DAQ_target"]
+second_folder_list = config_json["Second_folder_list"]
+loaded_file_num = 0
+
 
 
 
@@ -135,42 +83,19 @@ def replaceSplitter(Abs_path) :
     Abs_path = Abs_path.replace("/", "\\")
     return Abs_path
 
-
-#BASE = os.getcwd()
-# BASE = "\\\\10.54.63.126\\Pnpext\\Siwoo\\WW17.1_LNL32_ov20252\\test_data"
-BASE = args.input
-result_csv = args.output
-# Get script directory for relative paths
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-
 if BASE is None:
-    import tkinter as tk
-    from tkinter import filedialog
+    from tools.tk_dialogs import select_folder_dialog
 
-    root = tk.Tk()
-    root.withdraw()
-    # bring last opened folder memory
-    last_folder_file = os.path.join(SCRIPT_DIR, "src", "last_opened_folder.txt")
-    try:
-        with open(last_folder_file, "r") as f:
-            last_folder = f.read()
-            folder_path = filedialog.askdirectory(title="Select a folder", initialdir=last_folder)
-    except Exception as e:
-        print(f"Failed to read last opened folder: {e}")
-        folder_path = filedialog.askdirectory(title="Select a folder")
-        tools.saveLastOpenedFolder(folder_path)
-
+    folder_path = select_folder_dialog(
+        title="Select a folder",
+        storage_name="last_opened_folder",
+        base_dir=Path(SCRIPT_DIR),
+    )
     if folder_path:
-        
         BASE = replaceSplitter(folder_path)
         print(f"Selected folder: {BASE}")
-        # add memory to remember last opened folder
-        tools.saveLastOpenedFolder(folder_path)
     else:
         tools.errorAndExit("No folder selected")
-
-
 
 if args.daq is None:
     print("============== No external DAQ.json provided")
@@ -193,36 +118,11 @@ if result_csv == None :
 
 
 
-
-hobl_sets = list()
-
-file_num = 0
-
-
-picks = {
-        "SOC_POWER_RAIL_NAME":'', "PCORE_POWER_RAIL_NAME":'', "SA_POWER_RAIL_NAME":'', "GT_POWER_RAIL_NAME":'', 
-        'power_pick':MED,
-        'inferencingOnlyPower':True, 
-        'sortSimilarData':True,
-        'inferencing_power_detection':{
-            'power_obj':{'power_type':'SOCWATCH_ETL_POWER'},
-            'model_output_obj':{'model_output_status':'successful'}
-            }
-        }
-tools.parsePowerRailNames(DAQ_target, picks)
-
-
-
-
-
-
-    
 #=========================================================================
 # this returns parent or parent*2 folder name string as a data_set name
 # if ETL, Power, Socwatch folder separation structure,
 # it returns grand parent folder name
 #=========================================================================
-
 
 def getDatasetLabel(abs_path) :
 
@@ -274,8 +174,8 @@ def add_etl(abs_path):
 #         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
 #     dataset["model_output_obj"] = mop.parseModelResults(abs_path, AI_parsing_items)
 #     calFromPowerModel(dataset)
-#     global file_num
-#     file_num += 1
+#     global loaded_file_num
+#     loaded_file_num += 1
 
 def add_power(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -286,8 +186,8 @@ def add_power(abs_path):
         dataset["data_type"].append(POWER)
     dataset["power_obj"] = psp.parsePowerSummaryCSV(abs_path, DAQ_target)
     # calFromPowerModel(dataset)
-    global file_num
-    file_num += 1
+    global loaded_file_num
+    loaded_file_num += 1
 
 def add_trace(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -295,8 +195,8 @@ def add_trace(abs_path):
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
     dataset["trace_obj"] = ptp.parsePowerTraceCSV(abs_path)
-    global file_num
-    file_num += 1
+    global loaded_file_num
+    loaded_file_num += 1
 
 def add_socwatch(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -306,8 +206,8 @@ def add_socwatch(abs_path):
     if SOCWATCH not in dataset["data_type"] :
         dataset["data_type"].insert(0, SOCWATCH)
     dataset["socwatch_obj"] = soc.parseSocwatch(abs_path, socwatch_targets)
-    global file_num
-    file_num += 1
+    global loaded_file_num
+    loaded_file_num += 1
 
 def add_pcie_only(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -317,8 +217,8 @@ def add_pcie_only(abs_path):
     if PCIE not in dataset["data_type"] :
         dataset["data_type"].insert(0, PCIE)
     dataset["pcie_socwatch_obj"] = psoc.parsePCIe(abs_path, PCIe_targets)
-    global file_num
-    file_num += 1
+    global loaded_file_num
+    loaded_file_num += 1
 
 
 def fileClassifier(abs_path, f):
@@ -404,7 +304,7 @@ start_time = time.perf_counter()
 main()
 end_time = time.perf_counter()
 elapsed_time = end_time - start_time
-print(f"Parsing {file_num} files Successful! [Elapsed time:::] {elapsed_time} seconds")
+print(f"Parsing {loaded_file_num} files Successful! [Elapsed time:::] {elapsed_time} seconds")
 
 
 

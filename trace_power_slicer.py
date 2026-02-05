@@ -223,60 +223,18 @@ def load_config(config_path: str) -> Dict:
     return config
 
 
-def save_last_opened_file(file_path: str):
-    """Save the last opened file path for future use"""
-    try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        src_dir = os.path.join(script_dir, "src")
-        os.makedirs(src_dir, exist_ok=True)
-        last_file = os.path.join(src_dir, "last_opened_trace.txt")
-        # Save the directory, not the file
-        last_dir = os.path.dirname(file_path)
-        with open(last_file, "w") as f:
-            f.write(last_dir)
-    except Exception as e:
-        print(f"Failed to save last opened file: {e}")
-
-
 def select_trace_file() -> str:
     """Open a file dialog to select a trace file"""
-    import tkinter as tk
-    from tkinter import filedialog
-    
-    root = tk.Tk()
-    root.withdraw()
-    
-    # Try to load last opened directory
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    last_file = os.path.join(script_dir, "src", "last_opened_trace.txt")
-    initial_dir = None
-    
-    try:
-        with open(last_file, "r") as f:
-            initial_dir = f.read().strip()
-            if not os.path.exists(initial_dir):
-                initial_dir = None
-    except Exception:
-        pass
-    
-    # Open file dialog
-    if initial_dir:
-        file_path = filedialog.askopenfilename(
-            title="Select a power trace CSV file",
-            initialdir=initial_dir,
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-        )
-    else:
-        file_path = filedialog.askopenfilename(
-            title="Select a power trace CSV file",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-        )
-    
-    if file_path:
-        save_last_opened_file(file_path)
-        return file_path
-    else:
-        return None
+    from tools.tk_dialogs import select_file_dialog
+
+    script_dir = Path(__file__).resolve().parent
+    file_path = select_file_dialog(
+        title="Select a power trace CSV file",
+        filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+        storage_name="last_opened_trace",
+        base_dir=script_dir,
+    )
+    return file_path
 
 
 def main():

@@ -1,6 +1,7 @@
 import re
 import sys
 import os
+import json
 
 def parseNumeric(text) :
     return ''.join(re.findall(r'[0-9.]', text))
@@ -195,9 +196,16 @@ def errorAndExit(msgs) :
     sys.exit("[Error] :: " + msgs)
     print("=============================================================================")
 
+    
+def jsonLoader(SCRIPT_DIR, filename, picks) :
 
-def replaceSetupfiles() :
-    pass
+    try :
+        with open(os.path.join(f"{SCRIPT_DIR}\\config", filename), 'r') as json_file:
+            data = json.load(json_file)
+            parsePowerRailNames(data["DAQ_target"], picks)
+            return data
+    except Exception as e:
+        errorAndExit(f"Failed to load JSON file: {e}")
 
 def parsePowerRailNames(DAQ_target, picks):
     picks["SOC_POWER_RAIL_NAME"] = DAQ_target.get("SOC_POWER_RAIL_NAME")
