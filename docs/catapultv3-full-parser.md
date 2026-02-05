@@ -6,7 +6,7 @@ This should be used after you have selected the data from the ParseAll.py report
 ##### [Powershell example]
 ```powershell
 
-PS C:\Users\siwoopar\code\ParseCSV> py CatapultV3_conduit.py -i .\src\collection.json -o .\test\2nd_file_prefix -d .\src\DAQ_target_LNL09-04DUT.json -st .\src\Socwatch_targets.json
+PS C:\Users\siwoopar\code\ParseCSV> py CatapultV3_conduit.py -i .\config\collection.json -o .\test\2nd_file_prefix -d .\config\DAQ_target_LNL09-04DUT.json -st .\config\Socwatch_targets.json
 
 ```
 ### Arguments

@@ -43,7 +43,7 @@ WW2534.1_somedata ├── Baseline  ├── ETL          └── CataV3_00
 ##### [Powershell example]
 ```powershell
 
-PS C:\Users\siwoopar\code\ParseCSV> py ParseAll.py -i \\255.255.255.255\Pnpext\Siwoo\data\WW2526.5_CataV3_IT_CCA_LC\Baseline -o .\test\2nd_folders -d .\src\DAQ_target_LNL09-04DUT.json -st .\src\Socwatch_targets.json
+PS C:\Users\siwoopar\code\ParseCSV> py ParseAll.py -i \\255.255.255.255\Pnpext\Siwoo\data\WW2526.5_CataV3_IT_CCA_LC\Baseline -o .\test\2nd_folders -d .\config\DAQ_target_LNL09-04DUT.json -st .\config\Socwatch_targets.json
 
 ```
 
