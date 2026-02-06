@@ -197,12 +197,12 @@ def errorAndExit(msgs) :
     print("=============================================================================")
 
     
-def jsonLoader(SCRIPT_DIR, filename, picks) :
+def jsonLoader(filename, picks) :
 
     try :
-        with open(os.path.join(f"{SCRIPT_DIR}\\config", filename), 'r') as json_file:
+        with open(os.path.join(filename), 'r') as json_file:
             data = json.load(json_file)
-            parsePowerRailNames(data["DAQ_target"], picks)
+            parsePowerRailNames(data["DAQ_target"], picks) if "DAQ_target" in data else None
             return data
     except Exception as e:
         errorAndExit(f"Failed to load JSON file: {e}")

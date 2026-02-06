@@ -16,6 +16,7 @@ import parsers.reporter as rpt
 import argparse
 
 parser = argparse.ArgumentParser(prog='AI summary parser')
+parser.add_argument('-c', '--config', help='configuration path. json format, need to have all of -d -st and others')
 parser.add_argument('-i', '--input', help='input path. this will be the bese of the summray, will detect all files and folders from that path tree')
 parser.add_argument('-o', '--output', help='output path. location of file and file name')
 parser.add_argument('-d', '--daq', help='DAQ power rail name dictionary')
@@ -66,7 +67,17 @@ picks = {
             }
         }
 
-config_json = tools.jsonLoader(SCRIPT_DIR, "PTL_default_config.json", picks)
+
+config_json = dict()
+
+if args.config is None:
+    print("============== No external default config JSON provided")
+    config_json = tools.jsonLoader(f"{SCRIPT_DIR}\\config\\PTL_default_config.json", picks)
+else :
+    config_json = tools.jsonLoader(args.config, picks)
+    print(config_json)
+
+
 
 socwatch_targets = config_json["socwatch_targets"]
 PCIe_targets = config_json["PCIe_targets"]
