@@ -12,10 +12,11 @@ import parsers.power_summary_parser as psp
 import parsers.power_trace_parser as ptp
 import parsers.power_checker as pck
 import parsers.reporter as rpt
+import parsers.fps_img_parser as fip
 
 import argparse
 
-parser = argparse.ArgumentParser(prog='AI summary parser')
+parser = argparse.ArgumentParser(prog='Game (+ img FPS) parser')
 parser.add_argument('-c', '--config', help='configuration path. json format, need to have all of -d -st and others')
 parser.add_argument('-i', '--input', help='input path. this will be the bese of the summray, will detect all files and folders from that path tree')
 parser.add_argument('-o', '--output', help='output path. location of file and file name')
@@ -37,6 +38,7 @@ CL_DAQ_SUMMARY = 'pacs-summary.csv'
 CL_DAQ_TRACES = 'pacs-traces'
 CL_PASS = ".PASS"
 CL_FAIL = ".FAIL"
+CL_FPSIMG = "_end.png"
 
 ETL = "ETL"
 POWER = "POWER"
@@ -61,6 +63,7 @@ picks = {
         'power_pick':MED,
         'inferencingOnlyPower':True, 
         'sortSimilarData':True,
+        "fpsImgParsing":False, 
         'inferencing_power_detection':{
             'power_obj':{'power_type':'SOCWATCH_ETL_POWER'},
             'model_output_obj':{'model_output_status':'successful'}
@@ -231,6 +234,14 @@ def add_pcie_only(abs_path):
     global loaded_file_num
     loaded_file_num += 1
 
+def add_fpsimg(abs_path):
+    path_set = tools.splitLastItem(abs_path, path_splitter, 1)
+    dataset = pullData(path_set[0])
+    if dataset == None:
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    dataset["fps_img_obj"] = fip.parseFpsImg(abs_path)
+    global loaded_file_num
+    loaded_file_num += 1
 
 def fileClassifier(abs_path, f):
 
@@ -276,6 +287,9 @@ def fileClassifier(abs_path, f):
         # file_size = os.path.getsize(abs_path)
         add_socwatch(abs_path)
         file_type = CL_SOCWATCH_CSV
+    elif picks["fpsImgParsing"] and f.find(CL_FPSIMG) >= 0:
+        add_fpsimg(abs_path)
+        file_type = CL_FPSIMG
     return file_type
 
 
@@ -300,7 +314,6 @@ def detectAndParseFile(path) :
                     createDataset(abs_path)
             #recursive on a folder detection
             detectAndParseFile(abs_path)
-
 
 
 def main():

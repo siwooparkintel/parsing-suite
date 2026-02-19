@@ -26,7 +26,7 @@ def saveLastOpenedFolder(folder_path):
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         parent_dir = os.path.dirname(script_dir)
-        last_folder_file = os.path.join(parent_dir, "src", "last_opened_folder.txt")
+        last_folder_file = os.path.join(parent_dir, "config", "last_opened_folder.txt")
         with open(last_folder_file, "w") as f:
             f.write(folder_path)
     except Exception as e:
@@ -86,6 +86,21 @@ def flatten_model_dic(entry) :
             updated_key = key+f" ({value_list[1]})" if value_list[1] != "" else key
             new_output[updated_key] = value_list[0]
         new_output['model_output_path'] = entry["model_output_obj"]["model_output_path"]
+        return new_output
+    else :
+        return {}
+    
+def flatten_fps_dic(entry) :
+    
+    if "fps_img_obj" in entry and "fps_data" in entry["fps_img_obj"] :
+        copied = entry["fps_img_obj"]['fps_data'].copy()
+        new_output = dict()
+        for index, key in enumerate(copied):
+            value_list = copied[key]
+            # updated_key = key+f" ({value_list[1]})" if value_list[1] != "" else key
+            new_output[key] = value_list
+        new_output['Eng(J)/Frame'] = entry["power_obj"]["power_data"]["Energy (J)"] / copied["frames_rendered"] if "Energy (J)" in entry["power_obj"]["power_data"] and "frames_rendered" in copied and copied["frames_rendered"] != '' and copied["frames_rendered"] != 0 else ''
+        new_output['fps_img_path'] = entry["fps_img_obj"]["fps_img_path"]
         return new_output
     else :
         return {}

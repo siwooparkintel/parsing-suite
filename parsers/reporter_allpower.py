@@ -75,6 +75,7 @@ def flatten_data(entry, socwatch_targets, PCIe_targets, picks):
     flattened = {'Data label': entry['data_label'][0], 'Condition': entry['data_label'][1]}
     flattened.update(tools.flatten_power_dic(entry, picks))
     flattened.update(tools.flatten_model_dic(entry))
+    flattened.update(tools.flatten_fps_dic(entry))
     flattened.update(tools.flatten_socwatch_dic(entry, socwatch_targets))
     flattened.update(tools.flatten_pcie_socwatch_dic(entry, PCIe_targets))
     return flattened

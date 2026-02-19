@@ -35,6 +35,7 @@ WW2534.1_somedata ├── Baseline  ├── ETL          └── CataV3_00
 </pre>
 
 ### Arguments
+##### -c, --config [optional]: full path to a config JSON. If omitted, defaults to `config/PTL_default.config` in the ParseAll script folder. This file should include socwatch targets, PCIe targets, DAQ targets, and folder structure settings.
 ##### -i, --input [required] : full path to the folder
 ##### -o, --output [recommended]: full path to the output excel file location and filename prefix. "_allPower_v.xlsx" will be added in the file name.
 ##### -d, --daq [recommended]: full path and json file name. it externalizes the DAQ_target dictionary object as a json since each DAQ can have different power measure rail names.
@@ -44,6 +45,8 @@ WW2534.1_somedata ├── Baseline  ├── ETL          └── CataV3_00
 ```powershell
 
 PS C:\Users\siwoopar\code\ParseCSV> py ParseAll.py -i \\255.255.255.255\Pnpext\Siwoo\data\WW2526.5_CataV3_IT_CCA_LC\Baseline -o .\test\2nd_folders -d .\config\DAQ_target_LNL09-04DUT.json -st .\config\Socwatch_targets.json
+
+PS C:\Users\siwoopar\code\ParseCSV> py ParseAll.py -i \\255.255.255.255\Pnpext\Siwoo\data\WW2526.5_CataV3_IT_CCA_LC\Baseline -o .\test\2nd_folders -c .\config\PTL_default.config
 
 ```
 

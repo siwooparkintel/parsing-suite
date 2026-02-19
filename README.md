@@ -36,6 +36,8 @@ pip install -r requirements.txt
 **For multi-source aggregation:**
 ```bash
 python ParseAll.py -i <input_path> -o <output_path> [options]
+# Optional: provide a full config JSON
+python ParseAll.py -i <input_path> -o <output_path> -c <config.json> [options]
 ```
 
 **For collection-based analysis:**
@@ -111,6 +113,7 @@ Many parsers support configuration through:
 |-----------|------|---------|
 | `-i, --input` | Path | `\\server\data\location` or `./data` |
 | `-o, --output` | Path | `./results/output.xlsx` |
+| `-c, --config` | JSON File | `./config/PTL_default.config` |
 | `-d, --daq` | JSON File | `./config/daq_targets.json` |
 | `-st, --swtarget` | JSON File | `./config/socwatch_targets.json` |
 | `-hb, --hobl` | Flag | (no value, include if HOBL data) |

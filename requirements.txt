@@ -5,5 +5,12 @@ numpy>=1.20.0
 # Excel handling
 openpyxl>=3.1.0,<4.0.0
 
+# OCR for FPS image parsing
+pytesseract>=0.3.10
+opencv-python>=4.8.0
+Pillow>=10.0.0
+
 # Note: tkinter is included with Python standard library
 # csv, json, os, sys, time, argparse are also standard library modules
+# For pytesseract, you also need to install Tesseract OCR binary:
+# Windows: https://github.com/UB-Mannheim/tesseract/wiki
