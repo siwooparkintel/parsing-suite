@@ -63,7 +63,7 @@ picks = {
         'power_pick':MED,
         'inferencingOnlyPower':True, 
         'sortSimilarData':True,
-        "fpsImgParsing":False, 
+        "fpsImgParsing":True, 
         'inferencing_power_detection':{
             'power_obj':{'power_type':'SOCWATCH_ETL_POWER'},
             'model_output_obj':{'model_output_status':'successful'}

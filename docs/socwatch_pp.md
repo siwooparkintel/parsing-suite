@@ -83,6 +83,10 @@ python socwatch_pp.py --output-dir D:\results C:\data\traces
 # Export .swjson format with extra details
 python socwatch_pp.py -r C:\data\traces
 
+# Force reprocessing even if output already exists
+python socwatch_pp.py -f C:\data\traces
+python socwatch_pp.py --force C:\data\traces
+
 # Process with time slice (1000ms to 15000ms)
 python socwatch_pp.py --slice-range 1000,15000 C:\data\traces
 
@@ -93,9 +97,47 @@ python socwatch_pp.py --slice-range 0,10000 --slice-range 20000,30000 --slice-ra
 # Combine options (CLI mode with custom SocWatch directory, output, slicing, and JSON export)
 python socwatch_pp.py --cli --socwatch-dir C:\Intel\SocWatch -o D:\results -r --slice-range 1000,15000 C:\data\traces
 
+# Force reprocessing with JSON export and custom output
+python socwatch_pp.py --force -r -o D:\results C:\data\traces
+
 # Show help
 python socwatch_pp.py --help
 ```
+
+## Force Reprocessing
+
+The `-f` or `--force` option allows you to reprocess .etl files even if output files already exist:
+
+- **Format**: `-f` or `--force` (no additional arguments needed)
+- **Behavior**: Bypasses the skip detection logic that normally skips already-processed collections
+- **Use Cases**:
+  - Regenerate reports with updated SocWatch version
+  - Reprocess after manual deletion of partial results
+  - Override previous processing that may have been incomplete
+  - Force reanalysis with different SocWatch settings
+
+**Example Usage:**
+```bash
+# Reprocess all traces even if output exists
+python socwatch_pp.py --force C:\data\traces
+
+# Force reprocessing with JSON export
+python socwatch_pp.py -f -r C:\data\traces
+
+# Combine with other options
+python socwatch_pp.py --force --slice-range 1000,15000 -o D:\results C:\data\traces
+```
+
+**Default Behavior (without --force):**
+- Checks if `{workload_name}.csv` exists
+- Checks if `{workload_name}_WakeupAnalysis.csv` exists
+- Skips processing if either file is found
+- Displays: "⏭️  Skipping - already processed (use --force to reprocess)"
+
+**With --force:**
+- Ignores existing output files
+- Always processes the .etl files
+- Overwrites existing output
 
 ## Time Slicing Feature
 
@@ -176,6 +218,7 @@ python socwatch_pp.py -r --slice-range 5000,15000 -o D:\results C:\data\traces
    - Looks for `{workload_name}.csv` summary file
    - Looks for `{workload_name}_WakeupAnalysis.csv` file
    - Skips already-processed collections to save time
+   - Can be overridden with `-f` or `--force` flag to reprocess
 
 6. **Batch Processing**: For each .etl file found:
    - Extracts the file prefix (filename without .etl extension)
