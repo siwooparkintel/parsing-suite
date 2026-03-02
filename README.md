@@ -77,6 +77,11 @@ python swjson_parser.py -i <swjson_file> -e "Event Name 1" "Event Name 2"
 python swjson_parser.py
 ```
 
+**For FPS screenshot OCR:**
+```bash
+python parsers/fps_img_parser.py <image_or_folder> --debug
+```
+
 ### 3. Detailed Guidance
 
 - **New users**: Start with [ParseAll documentation](./docs/parseall.md)

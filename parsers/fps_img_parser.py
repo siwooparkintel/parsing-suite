@@ -9,6 +9,7 @@ Uses OCR to detect and parse FPS values from benchmark result screens.
 import re
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -277,6 +278,8 @@ class FPSImageParser:
         """
         if not os.path.exists(image_path):
             raise FileNotFoundError(f"Image not found: {image_path}")
+
+        image_start = time.perf_counter()
         
         # Extract text from image
         text = self.extract_text(image_path)
@@ -288,6 +291,7 @@ class FPSImageParser:
         
         # Parse FPS values
         fps_data = self.parse_fps_from_text(text)
+        fps_data['parse_time_sec'] = round(time.perf_counter() - image_start, 3)
         
         return fps_data
     
@@ -383,9 +387,15 @@ def main():
                        help="Path to tesseract executable")
     
     args = parser.parse_args()
+
+    total_start = time.perf_counter()
+    print(f"[timer] start: {time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Initialize parser
+    init_start = time.perf_counter()
     fps_parser = FPSImageParser(tesseract_path=args.tesseract_path)
+    init_elapsed = time.perf_counter() - init_start
+    print(f"[timer] parser init sec: {init_elapsed:.3f}")
     
     input_path = Path(args.input)
     
@@ -412,6 +422,10 @@ def main():
     else:
         print(f"Error: {input_path} is not a valid file or folder")
         return 1
+
+    total_elapsed = time.perf_counter() - total_start
+    print(f"[timer] end: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"[timer] total sec: {total_elapsed:.3f}")
     
     return 0
 

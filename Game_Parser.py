@@ -12,7 +12,7 @@ import parsers.power_summary_parser as psp
 import parsers.power_trace_parser as ptp
 import parsers.power_checker as pck
 import parsers.reporter as rpt
-import parsers.fps_img_parser as fip
+import parsers.fps_img_parser as fip_legacy
 
 import argparse
 
@@ -239,7 +239,8 @@ def add_fpsimg(abs_path):
     dataset = pullData(path_set[0])
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-    dataset["fps_img_obj"] = fip.parseFpsImg(abs_path)
+    dataset["fps_img_obj"] = fip_legacy.parseFpsImg(abs_path)
+
     global loaded_file_num
     loaded_file_num += 1
 
