@@ -49,11 +49,10 @@ MIN = "MIN"
 MAX = "MAX"
 MED = "MED"
 
-#BASE = os.getcwd()
-# BASE = "\\\\10.54.63.126\\Pnpext\\Siwoo\\WW17.1_LNL32_ov20252\\test_data"
+
 BASE = args.input
 result_csv = args.output
-# Get script directory for relative paths
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -131,11 +130,7 @@ if result_csv == None :
 
 
 
-#=========================================================================
-# this returns parent or parent*2 folder name string as a data_set name
-# if ETL, Power, Socwatch folder separation structure,
-# it returns grand parent folder name
-#=========================================================================
+
 
 def getDatasetLabel(abs_path) :
 
@@ -150,17 +145,24 @@ def getDatasetLabel(abs_path) :
 
 def createDataset(abs_path) :
     # print("[abs_path] ", abs_path)
-    hobl_sets.append({
+    return {
         "ID_path":abs_path,
         "data_label":getDatasetLabel(abs_path),
         "data_type":[]
-    })
+    }
 
 def pullData(abs_path) :
+    retrieved = None
+
     for item in hobl_sets:
         if (abs_path.find(item["ID_path"]) == 0) : 
-            return item
-    return None
+            retrieved = item
+            break
+    if retrieved is None and args.hobl != True:
+        retrieved = createDataset(abs_path)
+        hobl_sets.append(retrieved)
+    
+    return retrieved
 
 def calFromPowerModel(block) :
     if 'power_obj' in block and 'model_output_obj' in block :
@@ -168,7 +170,6 @@ def calFromPowerModel(block) :
             # calculate 'Eng(J)/Frame' here
             block['power_obj']['power_data']['Eng(J)/Frame'] = block['power_obj']['power_data']['Energy (J)'] / block['model_output_obj']['model_output_data']['throughput'][0]
         else :
-            # tools.errorAndExit("===error in claFromPowerModel===" + str(block))
             block['power_obj']['power_data']['Eng(J)/Frame'] = "n/a"
 
 def add_etl(abs_path):
@@ -179,16 +180,6 @@ def add_etl(abs_path):
     if ETL not in dataset["data_type"] :
         dataset["data_type"].insert(0, ETL)
     dataset["etl_path"] = abs_path
-
-# def add_model_output(abs_path):
-#     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
-#     dataset = pullData(path_set[0])
-#     if dataset == None:
-#         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-#     dataset["model_output_obj"] = mop.parseModelResults(abs_path, AI_parsing_items)
-#     calFromPowerModel(dataset)
-#     global loaded_file_num
-#     loaded_file_num += 1
 
 def add_power(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -238,8 +229,8 @@ def add_procyon_result_xml(abs_path):
     dataset = pullData(path_set[0])
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-    if PROCYON not in dataset["data_type"] :
-        dataset["data_type"].insert(0, PROCYON)
+    # if PROCYON not in dataset["data_type"] :
+    #     dataset["data_type"].insert(0, PROCYON)
     dataset["procyon_result_obj"] = pxp.parseProcyonResultXML(abs_path)
     global loaded_file_num
     loaded_file_num += 1
@@ -250,7 +241,7 @@ def fileClassifier(abs_path, f):
     file_type = CL_UNCLASSIFIED
     
     if args.hobl == True and (f == CL_PASS or f == CL_FAIL):
-        createDataset(tools.splitLastItem(abs_path, path_splitter, 1)[0])
+        hobl_sets.append(createDataset(tools.splitLastItem(abs_path, path_splitter, 1)[0]))
     elif f.find(CL_ETL) >= 0 and f.find(CL_SOCWATCH) == -1 : 
         # print("ETL detected ", abs_path, f)
         add_etl(abs_path)
@@ -292,28 +283,22 @@ def fileClassifier(abs_path, f):
     elif f.lower().find(CL_PROCYON_RESULT_XML[0]) >= 0 and f.lower().endswith(CL_PROCYON_RESULT_XML[1]):
         add_procyon_result_xml(abs_path)
         file_type = CL_PROCYON_RESULT_XML
+
     return file_type
 
+skip_folder_list = ["MSTeamsLogs", "Training"]
 
 def detectAndParseFile(path) :
 
-    # listdir gives back all file system list, including file and folder
     for f in os.listdir(path):
         abs_path = os.path.join(path, f)
-        # if f == "Model_A3_v1_2_3_qdq_proxy_stripped":
-        #     break
+
         if os.path.isfile(abs_path):
             fType = fileClassifier(abs_path, f)
-            if fType == CL_SOCWATCH :
-                # after detecting first Socwatch ETL, and it's summary, no need to go further
-                break
-        elif f != "MSTeamsLogs" and f != "Training":
-            # only creates data set if not collected through HOBL. 
-            if args.hobl == None or args.hobl == False:
-                path_sliced = tools.splitLastItem(abs_path, "\\", 1)
-                last_folder = path_sliced[1].upper()
-                if last_folder not in second_folder_list and (pullData(abs_path) == None) :
-                    createDataset(abs_path)
+
+        # skip these folders, ignore and do not perform recursive detection inside these folders
+        elif f not in skip_folder_list :
+
             #recursive on a folder detection
             detectAndParseFile(abs_path)
 

@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+import parsers.tools as tools
 
 def readTextfile(abs_path) :
 
@@ -29,7 +30,7 @@ def readTextfile(abs_path) :
                     score = elem.text.strip()
 
     if score is not None:
-        parsed['procyon_overall_score'] = score
+        parsed['procyon_overall_score'] = tools.tryIntifNumber(score)
 
     return parsed
 
