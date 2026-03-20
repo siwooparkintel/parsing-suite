@@ -148,17 +148,32 @@ def getDatasetLabel(abs_path) :
 
 def createDataset(abs_path) :
     # print("[abs_path] ", abs_path)
-    hobl_sets.append({
+    return {
         "ID_path":abs_path,
         "data_label":getDatasetLabel(abs_path),
         "data_type":[]
-    })
+    }
+
+def folderScructureRouter(abs_path) :
+    folder_list = abs_path.split(path_splitter)
+    if (len(folder_list) > 1 and folder_list[-1].lower() == folder_list[-2].lower()) or (len(folder_list) > 0 and folder_list[-1].lower() == "socwatch") :
+        return tools.splitLastItem(abs_path, path_splitter, 1)[0]
+    else :
+        return abs_path
 
 def pullData(abs_path) :
+    retrieved = None
+
     for item in hobl_sets:
         if (abs_path.find(item["ID_path"]) == 0) : 
-            return item
-    return None
+            retrieved = item
+            break
+    if retrieved is None and args.hobl != True:
+        
+        retrieved = createDataset(folderScructureRouter(abs_path))
+        hobl_sets.append(retrieved)
+    
+    return retrieved
 
 def calFromPowerModel(block) :
     if 'power_obj' in block and 'model_output_obj' in block :
@@ -216,9 +231,9 @@ def add_socwatch(abs_path):
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
     if SOCWATCH not in dataset["data_type"] :
         dataset["data_type"].insert(0, SOCWATCH)
-    dataset["socwatch_obj"] = soc.parseSocwatch(abs_path, socwatch_targets)
-    global loaded_file_num
-    loaded_file_num += 1
+        dataset["socwatch_obj"] = soc.parseSocwatch(abs_path, socwatch_targets)
+        global loaded_file_num
+        loaded_file_num += 1
 
 def add_pcie_only(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -227,9 +242,9 @@ def add_pcie_only(abs_path):
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
     if PCIE not in dataset["data_type"] :
         dataset["data_type"].insert(0, PCIE)
-    dataset["pcie_socwatch_obj"] = psoc.parsePCIe(abs_path, PCIe_targets)
-    global loaded_file_num
-    loaded_file_num += 1
+        dataset["pcie_socwatch_obj"] = psoc.parsePCIe(abs_path, PCIe_targets)
+        global loaded_file_num
+        loaded_file_num += 1
 
 
 def fileClassifier(abs_path, f):
@@ -237,7 +252,7 @@ def fileClassifier(abs_path, f):
     file_type = CL_UNCLASSIFIED
     
     if args.hobl == True and (f == CL_PASS or f == CL_FAIL):
-        createDataset(tools.splitLastItem(abs_path, path_splitter, 1)[0])
+        hobl_sets.append(createDataset(tools.splitLastItem(abs_path, path_splitter, 1)[0]))
     elif f.find(CL_ETL) >= 0 and f.find(CL_SOCWATCH) == -1 : 
         # print("ETL detected ", abs_path, f)
         add_etl(abs_path)
@@ -278,29 +293,20 @@ def fileClassifier(abs_path, f):
         file_type = CL_SOCWATCH_CSV
     return file_type
 
+skip_folder_list = ["MSTeamsLogs", "Training", "Report"]
 
 def detectAndParseFile(path) :
 
     # listdir gives back all file system list, including file and folder
     for f in os.listdir(path):
         abs_path = os.path.join(path, f)
-        # if f == "Model_A3_v1_2_3_qdq_proxy_stripped":
-        #     break
         if os.path.isfile(abs_path):
             fType = fileClassifier(abs_path, f)
-            if fType == CL_SOCWATCH :
-                # after detecting first Socwatch ETL, and it's summary, no need to go further
-                break
-        elif f != "MSTeamsLogs" and f != "Training":
-            # only creates data set if not collected through HOBL. 
-            if args.hobl == None or args.hobl == False:
-                path_sliced = tools.splitLastItem(abs_path, "\\", 1)
-                last_folder = path_sliced[1].upper()
-                if last_folder not in second_folder_list and (pullData(abs_path) == None) :
-                    createDataset(abs_path)
+
+        elif f not in skip_folder_list:
+
             #recursive on a folder detection
             detectAndParseFile(abs_path)
-
 
 
 def main():
