@@ -1,759 +1,752 @@
+#!/usr/bin/env python3
 """
-SWJSON Parser - Analyze and visualize data from .swjson trace files
+SWJSON Parser for new SocWatch JSON structure.
+
+Expected structure:
+- root["data"] is a dict of event names
+- each event has:
+  - metaData (including optional states list)
+  - data (series dictionary)
+- each series has points list with objects like:
+  {"x": <start>, "x1": <end>, "y": {"<state_or_metric_key>": <value>}}
+
+This parser decodes y keys via metaData.states (when available),
+then routes each event to a suitable chart type.
 """
 
-import json
 import argparse
-import time
-from decimal import Decimal
-from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+import json
 from dataclasses import dataclass, field
-
-try:
-    import ijson
-except ImportError:
-    ijson = None
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import parsers.tools as tools
 
-plt = None
 
-
-def _ensure_matplotlib() -> bool:
-    """Lazy-load matplotlib only when chart generation is needed."""
-    global plt
-    if plt is not None:
-        return True
-
-    try:
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as _plt
-        plt = _plt
-        return True
-    except ImportError:
-        return False
+@dataclass
+class PointRecord:
+    series: str
+    x_start: float
+    x_end: float
+    metric_key: str
+    metric_label: str
+    value: float
 
 
 @dataclass
-class EventMetrics:
-    """Container for event analysis metrics."""
-    event_name: str = ""
-    total_events: int = 0
-    peak_value: float = 0
-    start_time: float = float('inf')
-    end_time: float = 0
-    duration: float = 0
-    accumulated: Dict[str, float] = field(default_factory=dict)
-    chart_data: List[Tuple[float, float, str]] = field(default_factory=list)
-    
-    def to_dict(self) -> dict:
-        """Convert metrics to dictionary format for JSON export."""
-        peak_str = f"{round(self.peak_value / 1e6, 2)} MB" if self.peak_value >= 1e6 else f"{round(self.peak_value, 2)}"
-        
-        result = {
-            "event_name": self.event_name,
-            "total_event_number": self.total_events,
-            "peak_value": peak_str,
-            "event_start": self.start_time,
-            "event_end": self.end_time,
-            "duration": self.duration,
-            "accumulated_event": self.accumulated,
-            "events_for_charts": self.chart_data
-        }
-        
-        # Add bandwidth metrics if applicable
-        if "Bandwidth" in self.event_name:
-            total_bandwidth = sum(v for k, v in self.accumulated.items() 
-                                if k not in ["Total_Memory_Bandwidth", "Average_Memory_BW_(GB/s)"])
-            if total_bandwidth > 0 and self.duration > 0:
-                duration_seconds = self.duration / 1e6
-                result["accumulated_event"]["Total_Memory_Bandwidth"] = total_bandwidth
-                result["accumulated_event"]["Average_Memory_BW_(GB/s)"] = round(
-                    (total_bandwidth / 1e9) / duration_seconds, 2
-                )
-        
-        return result
+class EventBundle:
+    event_name: str
+    meta_type: str
+    states: List[str] = field(default_factory=list)
+    records: List[PointRecord] = field(default_factory=list)
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        prog='SWJSON Parser',
-        description='Parse and analyze .swjson or .json trace files for event metrics and visualization'
+        prog="swjson_parser.py",
+        description="Parse new .swjson event structure and generate event charts",
+    )
+    parser.add_argument("-i", "--input", help="Input .swjson/.json path")
+    parser.add_argument("-o", "--output", help="Output prefix path (default: <input_stem>_analysis)")
+    parser.add_argument("-e", "--events", nargs="+", help="Specific event names to process")
+    parser.add_argument("--list-events", action="store_true", help="List event names and exit")
+    parser.add_argument("--split-only", action="store_true", help="Run stage-1 only (no chart generation)")
+    parser.add_argument("--from-split", help="Directory containing split event files to chart from")
+    parser.add_argument("--split-dir", help="Output directory for split files")
+    parser.add_argument("--force", action="store_true", help="Overwrite existing split files")
+    parser.add_argument(
+        "--in-memory-split",
+        action="store_true",
+        help="Use legacy in-memory split format (JSON) instead of default JSONL split files",
     )
     parser.add_argument(
-        '-i', '--input',
-        help='Input .swjson or .json file path'
+        "--max-series",
+        type=int,
+        default=16,
+        help="Max series per event to include in chart (default: 16)",
     )
     parser.add_argument(
-        '-o', '--output',
-        help='Output path for results (without extension)'
-    )
-    parser.add_argument(
-        '-e', '--events',
-        nargs='+',
-        help='Event names to analyze (space-separated). If not provided, all events will be analyzed.'
-    )
-    parser.add_argument(
-        '--list-events',
-        action='store_true',
-        help='List all available event names in the file and exit'
-    )
-    parser.add_argument(
-        '-hb', '--hobl',
-        action='store_true',
-        help='HOBL mode: look for .PASS or .FAIL file in folder'
-    )
-    parser.add_argument(
-        '--split-only',
-        action='store_true',
-        help='Only split events into per-event files, do not generate charts'
-    )
-    parser.add_argument(
-        '--from-split',
-        help='Directory containing per-event split files ("*_events.jsonl" or "*_events.json") to generate charts from'
-    )
-    parser.add_argument(
-        '--split-dir',
-        help='Output directory for split per-event files (default: <output_stem>_events_stream)'
-    )
-    parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Overwrite existing split per-event files'
-    )
-    parser.add_argument(
-        '--in-memory-split',
-        action='store_true',
-        help='Use legacy in-memory split behavior instead of streaming split (default is streaming)'
+        "--max-points-per-series",
+        type=int,
+        default=3000,
+        help="Cap per-series points before charting (default: 3000)",
     )
     return parser.parse_args()
 
 
 def select_file_dialog(script_dir: Path) -> Optional[Path]:
-    """Show file selection dialog and return selected file path."""
-    import tkinter as tk
-    from tkinter import filedialog
-    
-    root = tk.Tk()
-    root.withdraw()
-    
-    last_folder_file = script_dir / "src" / "last_opened_folder.txt"
-    initial_dir = None
-    
-    # Load last opened folder
-    if last_folder_file.exists():
-        try:
-            initial_dir = last_folder_file.read_text().strip()
-        except Exception as e:
-            print(f"Warning: Could not read last folder: {e}")
-    
-    # Show file dialog
-    file_path = filedialog.askopenfilename(
+    initial_dir = str(script_dir / "temp") if (script_dir / "temp").is_dir() else str(script_dir)
+
+    file_path = tools.tk_dialogs(
+        dialog_type="open_file",
         title="Select a .swjson or .json file",
-        initialdir=initial_dir,
-        filetypes=[("JSON files", "*.swjson *.json"), ("SWJSON files", "*.swjson"), ("JSON files", "*.json"), ("All files", "*.*")]
+        initial_dir=initial_dir,
+        filetypes=[("JSON files", "*.swjson *.json"), ("All files", "*.*")],
     )
-    
-    if file_path:
-        # Save last opened folder
-        tools.saveLastOpenedFolder(str(Path(file_path).parent))
-        return Path(file_path)
-    
-    return None
 
+    # Fallback to direct tkinter usage if helper is unavailable.
+    if not file_path:
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
 
-def load_swjson(file_path: Path) -> Optional[dict]:
-    """Load and parse a .swjson or .json file."""
-    if file_path.suffix not in ['.swjson', '.json']:
-        print(f"Error: Invalid file extension. Expected .swjson or .json, got {file_path.suffix}")
+            root = tk.Tk()
+            root.withdraw()
+            file_path = filedialog.askopenfilename(
+                title="Select a .swjson or .json file",
+                initialdir=initial_dir,
+                filetypes=[("JSON files", "*.swjson *.json"), ("All files", "*.*")],
+            )
+            root.destroy()
+        except Exception:
+            file_path = None
+
+    if not file_path:
         return None
-    
+
+    tools.saveLastOpenedFolder(str(Path(file_path).parent))
+    return Path(file_path)
+
+
+def load_json(input_path: Path) -> dict:
+    if input_path.suffix not in [".swjson", ".json"]:
+        tools.errorAndExit(f"Unsupported extension: {input_path.suffix}")
+
     try:
-        with open(file_path, 'r') as f:
+        with open(input_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"Error: Failed to parse JSON - {e}")
-        return None
-    except FileNotFoundError:
-        print(f"Error: File not found - {file_path}")
-        return None
+    except json.JSONDecodeError as exc:
+        tools.errorAndExit(f"Failed to parse JSON: {exc}")
+    except OSError as exc:
+        tools.errorAndExit(f"Failed to read file: {exc}")
 
 
-def iter_trace_events(file_path: Path):
-    """Yield trace events one-by-one using streaming when available."""
-    if ijson is not None:
-        with open(file_path, 'rb') as f:
-            for event in ijson.items(f, 'traceEvents.item'):
-                yield event
-    else:
-        print("Warning: ijson not installed. Falling back to json.load (non-streaming parse).")
-        data = load_swjson(file_path)
-        if not data:
-            return
-        for event in data.get("traceEvents", []):
-            yield event
+def safe_name(value: str) -> str:
+    return value.replace("/", "_").replace("(", "").replace(")", "").replace(" ", "_")
 
 
-def parse_trace_events(data: dict) -> Dict[str, List[dict]]:
-    """Parse trace events and organize by category."""
-    if "traceEvents" not in data or not data["traceEvents"]:
-        print("Warning: No trace events found in file")
-        return {}
-    
-    events_by_category = {}
-    for event in data["traceEvents"]:
-        if "cat" in event:
-            category = event["cat"]
-            if category not in events_by_category:
-                events_by_category[category] = []
-            events_by_category[category].append(event)
-    
-    print(f"Found {len(events_by_category)} event categories")
-    return events_by_category
+def resolve_state_label(states: List[str], metric_key: str) -> str:
+    if not states:
+        return metric_key
+    try:
+        idx = int(metric_key)
+    except (TypeError, ValueError):
+        return metric_key
+
+    if 0 <= idx < len(states):
+        state = states[idx]
+        if isinstance(state, str) and state.strip():
+            return state
+    return metric_key
 
 
-def analyze_events(events: List[dict], event_name: str) -> EventMetrics:
-    """Analyze events and calculate metrics for any event type."""
-    metrics = EventMetrics(event_name=event_name)
-    
-    for event in events:
-        timestamp = event.get("ts", 0)
-        
-        # Update time range
-        metrics.start_time = min(metrics.start_time, timestamp)
-        metrics.end_time = max(metrics.end_time, timestamp)
-        
-        # Process event arguments
-        if "args" in event and event["args"]:
-            metrics.total_events += 1
-            
-            for metric_name, value in event["args"].items():
-                # Accumulate values per metric
-                if metric_name not in metrics.accumulated:
-                    metrics.accumulated[metric_name] = 0
-                metrics.accumulated[metric_name] += value
-                
-                # Track peak value
-                metrics.peak_value = max(metrics.peak_value, value)
-                
-                # Store data for charting
-                metrics.chart_data.append((timestamp, value, metric_name))
-    
-    # Calculate derived metrics
-    metrics.duration = metrics.end_time - metrics.start_time
-    
-    return metrics
+def spread_sample(items: List[Any], limit: int) -> List[Any]:
+    total = len(items)
+    if limit <= 0 or total <= limit:
+        return items
+    if limit == 1:
+        return [items[0]]
+
+    indices = sorted({int(round(i * (total - 1) / (limit - 1))) for i in range(limit)})
+    return [items[i] for i in indices]
 
 
-def create_event_chart(metrics: EventMetrics, output_path: Path):
-    """Route event to the best chart style based on event name."""
-    if not _ensure_matplotlib():
-        print(f"Warning: matplotlib not installed, skipping chart for {metrics.event_name}")
-        return
+def parse_new_swjson(data: dict, max_points_per_series: int) -> Dict[str, EventBundle]:
+    root = data.get("data")
+    if not isinstance(root, dict) or not root:
+        tools.errorAndExit('Invalid new swjson format: missing top-level "data" object')
 
-    if not metrics.chart_data:
-        print(f"Warning: No chart data available for {metrics.event_name}")
-        return
+    events: Dict[str, EventBundle] = {}
 
-    metric_data = _build_metric_data(metrics)
-    if not metric_data:
-        print(f"Warning: Could not build metric data for {metrics.event_name}")
-        return
+    for event_name, event_payload in root.items():
+        if not isinstance(event_payload, dict):
+            continue
 
-    chart_type = _detect_chart_type(metrics.event_name)
-    if chart_type == "bandwidth":
-        _draw_bandwidth_chart(metrics, metric_data, output_path)
-    elif chart_type == "state":
-        _draw_state_chart(metrics, metric_data, output_path)
-    elif chart_type == "sensor":
-        _draw_sensor_chart(metrics, metric_data, output_path)
-    else:
-        _draw_generic_scatter_chart(metrics, metric_data, output_path)
+        meta = event_payload.get("metaData", {})
+        states = meta.get("states", []) if isinstance(meta, dict) else []
+        if not isinstance(states, list):
+            states = []
 
+        bundle = EventBundle(
+            event_name=event_name,
+            meta_type=str(meta.get("type", "")) if isinstance(meta, dict) else "",
+            states=[str(x) for x in states],
+        )
 
-def _build_metric_data(metrics: EventMetrics) -> Dict[str, Dict[str, List[float]]]:
-    """Build normalized chart-ready metric series from chart_data."""
-    metric_data: Dict[str, Dict[str, List[float]]] = {}
+        series_map = event_payload.get("data", {})
+        if not isinstance(series_map, dict):
+            events[event_name] = bundle
+            continue
 
-    for timestamp, value, metric_name in metrics.chart_data:
-        key = metric_name if metric_name else "value"
-        if key not in metric_data:
-            metric_data[key] = {"time": [], "values": []}
+        for series_key, series_payload in series_map.items():
+            if not isinstance(series_payload, dict):
+                continue
 
-        metric_data[key]["time"].append(timestamp / 1e6)  # microseconds -> seconds
+            series_name = str(series_payload.get("friendlyName") or series_payload.get("name") or series_key)
+            points = series_payload.get("points", [])
+            if not isinstance(points, list):
+                continue
 
-        if "Bandwidth" in metrics.event_name and value >= 1e6:
-            metric_data[key]["values"].append(value / 1e6)  # MB/s
-        elif value >= 1e9:
-            metric_data[key]["values"].append(value / 1e9)
-        elif value >= 1e6:
-            metric_data[key]["values"].append(value / 1e6)
-        else:
-            metric_data[key]["values"].append(value)
+            sampled_points = spread_sample(points, max_points_per_series)
 
-    return metric_data
+            for point in sampled_points:
+                if not isinstance(point, dict):
+                    continue
 
+                x_start = float(point.get("x", 0))
+                x_end = float(point.get("x1", x_start))
+                y_payload = point.get("y", {})
 
-def _detect_chart_type(event_name: str) -> str:
-    """Classify event name to determine preferred chart style."""
-    lowered = event_name.lower()
+                if isinstance(y_payload, dict):
+                    kv_items = y_payload.items()
+                elif y_payload is None:
+                    kv_items = []
+                else:
+                    kv_items = [("value", y_payload)]
 
-    if "bandwidth" in lowered:
-        return "bandwidth"
+                for metric_key_raw, metric_value_raw in kv_items:
+                    metric_key = str(metric_key_raw)
+                    try:
+                        metric_value = float(metric_value_raw)
+                    except (TypeError, ValueError):
+                        continue
 
-    if "p-state" in lowered or "c-state" in lowered or "residency" in lowered:
-        return "state"
+                    bundle.records.append(
+                        PointRecord(
+                            series=series_name,
+                            x_start=x_start,
+                            x_end=x_end,
+                            metric_key=metric_key,
+                            metric_label=resolve_state_label(bundle.states, metric_key),
+                            value=metric_value,
+                        )
+                    )
 
-    if (
-        "temperature" in lowered
-        or "power" in lowered
-        or "voltage" in lowered
-        or "frequency" in lowered
-    ):
-        return "sensor"
+        events[event_name] = bundle
 
-    return "generic"
-
-
-def _get_y_label(metrics: EventMetrics) -> str:
-    y_label = "Value"
-    if "Bandwidth" in metrics.event_name:
-        y_label = "Bandwidth (MB/s)" if metrics.peak_value >= 1e6 else "Bandwidth (B/s)"
-    elif "Power" in metrics.event_name:
-        y_label = "Power (W)"
-    elif "Frequency" in metrics.event_name:
-        y_label = "Frequency (MHz)"
-    elif "Voltage" in metrics.event_name:
-        y_label = "Voltage (V)"
-    elif "Temperature" in metrics.event_name:
-        y_label = "Temperature (°C)"
-    elif "P-State" in metrics.event_name:
-        y_label = "Residency / Value"
-    elif "C-State" in metrics.event_name:
-        y_label = "Residency (µs)"
-    return y_label
+    return events
 
 
-def _safe_event_name(event_name: str) -> str:
-    return event_name.replace("/", "_").replace("(", "").replace(")", "").replace(" ", "_")
+def _bundle_to_payload(bundle: EventBundle) -> dict:
+    return {
+        "event_name": bundle.event_name,
+        "meta_type": bundle.meta_type,
+        "states": bundle.states,
+        "records": [
+            {
+                "series": r.series,
+                "x_start": r.x_start,
+                "x_end": r.x_end,
+                "metric_key": r.metric_key,
+                "metric_label": r.metric_label,
+                "value": r.value,
+            }
+            for r in bundle.records
+        ],
+    }
 
 
-def _save_chart(output_path: Path, metrics: EventMetrics):
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    safe_name = _safe_event_name(metrics.event_name)
-    chart_path = output_path.with_name(f"{output_path.stem}_{safe_name}_chart.png")
-    plt.savefig(chart_path, dpi=300, bbox_inches='tight')
-    print(f"Chart saved: {chart_path.name}")
-    plt.close()
-
-
-def _draw_generic_scatter_chart(
-    metrics: EventMetrics,
-    metric_data: Dict[str, Dict[str, List[float]]],
-    output_path: Path,
-):
-    plt.figure(figsize=(14, 8))
-
-    for metric_name, data in metric_data.items():
-        label = metric_name if metric_name else metrics.event_name
-        plt.scatter(data['time'], data['values'], label=label, s=10, alpha=0.7)
-
-    plt.xlabel('Time (seconds)', fontsize=12)
-    plt.ylabel(_get_y_label(metrics), fontsize=12)
-    title = metrics.event_name.replace("(", "").replace(")", "")
-    plt.title(f'{title} Over Time (Scatter)', fontsize=14, fontweight='bold')
-    if len(metric_data) > 1:
-        plt.legend(loc='best', fontsize=9, ncol=2)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    _save_chart(output_path, metrics)
-
-
-def _draw_sensor_chart(
-    metrics: EventMetrics,
-    metric_data: Dict[str, Dict[str, List[float]]],
-    output_path: Path,
-):
-    """Line chart for temperature/power/voltage/frequency-style metrics."""
-    plt.figure(figsize=(14, 8))
-
-    for metric_name, data in metric_data.items():
-        label = metric_name if metric_name else metrics.event_name
-        plt.plot(data['time'], data['values'], label=label, linewidth=1.4, alpha=0.85)
-
-    plt.xlabel('Time (seconds)', fontsize=12)
-    plt.ylabel(_get_y_label(metrics), fontsize=12)
-    title = metrics.event_name.replace("(", "").replace(")", "")
-    plt.title(f'{title} Over Time (Line)', fontsize=14, fontweight='bold')
-    if len(metric_data) > 1:
-        plt.legend(loc='best', fontsize=9, ncol=2)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    _save_chart(output_path, metrics)
-
-
-def _draw_state_chart(
-    metrics: EventMetrics,
-    metric_data: Dict[str, Dict[str, List[float]]],
-    output_path: Path,
-):
-    """State/residency events often have many bins: draw top contributors with lines."""
-    ranked = sorted(
-        metric_data.items(),
-        key=lambda item: sum(item[1]['values']) if item[1]['values'] else 0,
-        reverse=True,
+def _payload_to_bundle(payload: dict) -> EventBundle:
+    bundle = EventBundle(
+        event_name=str(payload.get("event_name", "")),
+        meta_type=str(payload.get("meta_type", "")),
+        states=[str(x) for x in payload.get("states", []) if isinstance(x, (str, int, float))],
     )
-    top_metrics = ranked[:8]
+    records = payload.get("records", [])
+    if not isinstance(records, list):
+        return bundle
 
-    plt.figure(figsize=(14, 8))
-    for metric_name, data in top_metrics:
-        label = metric_name if metric_name else metrics.event_name
-        plt.plot(data['time'], data['values'], label=label, linewidth=1.2, alpha=0.85)
-
-    plt.xlabel('Time (seconds)', fontsize=12)
-    plt.ylabel(_get_y_label(metrics), fontsize=12)
-    title = metrics.event_name.replace("(", "").replace(")", "")
-    plt.title(f'{title} Over Time (Top State Bins)', fontsize=14, fontweight='bold')
-    plt.legend(loc='best', fontsize=8, ncol=2)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    _save_chart(output_path, metrics)
-
-
-def _draw_bandwidth_chart(
-    metrics: EventMetrics,
-    metric_data: Dict[str, Dict[str, List[float]]],
-    output_path: Path,
-):
-    """Bandwidth events usually have multiple channels: draw top channels as lines."""
-    ranked = sorted(
-        metric_data.items(),
-        key=lambda item: max(item[1]['values']) if item[1]['values'] else 0,
-        reverse=True,
-    )
-    top_metrics = ranked[:10]
-
-    plt.figure(figsize=(14, 8))
-    for metric_name, data in top_metrics:
-        label = metric_name if metric_name else metrics.event_name
-        plt.plot(data['time'], data['values'], label=label, linewidth=1.1, alpha=0.8)
-
-    plt.xlabel('Time (seconds)', fontsize=12)
-    plt.ylabel(_get_y_label(metrics), fontsize=12)
-    title = metrics.event_name.replace("(", "").replace(")", "")
-    plt.title(f'{title} Over Time (Top Bandwidth Channels)', fontsize=14, fontweight='bold')
-    plt.legend(loc='best', fontsize=8, ncol=2)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    _save_chart(output_path, metrics)
-
-
-def save_event_results(metrics: EventMetrics, output_path: Path):
-    """Save analysis results to JSON file."""
-    safe_name = metrics.event_name.replace("/", "_").replace("(", "").replace(")", "").replace(" ", "_")
-    summary_path = output_path.with_name(f"{output_path.stem}_{safe_name}_summary.json")
-    
-    with open(summary_path, 'w') as f:
-        json.dump(metrics.to_dict(), f, indent=4)
-    print(f"Summary saved: {summary_path.name}")
+    for row in records:
+        if not isinstance(row, dict):
+            continue
+        try:
+            bundle.records.append(
+                PointRecord(
+                    series=str(row.get("series", "")),
+                    x_start=float(row.get("x_start", 0)),
+                    x_end=float(row.get("x_end", 0)),
+                    metric_key=str(row.get("metric_key", "")),
+                    metric_label=str(row.get("metric_label", "")),
+                    value=float(row.get("value", 0)),
+                )
+            )
+        except (TypeError, ValueError):
+            continue
+    return bundle
 
 
 def split_events_to_files(
-    events_by_category: Dict[str, List[dict]],
-    target_events: List[str],
-    split_dir: Path,
-    force: bool = False,
-):
-    """Write full raw events per event category into separate JSON files."""
-    split_dir.mkdir(parents=True, exist_ok=True)
-    print(f"\nSplitting events into per-event JSON files: {split_dir}")
-
-    for event_name in target_events:
-        events = events_by_category.get(event_name, [])
-        event_file = split_dir / f"{_safe_event_name(event_name)}_events.json"
-
-        if event_file.exists() and not force:
-            print(f"Split skipped: {event_file.name} (already exists)")
-            continue
-
-        payload = {
-            "event_name": event_name,
-            "total_events": len(events),
-            "events": events,
-        }
-
-        with open(event_file, 'w') as f:
-            json.dump(payload, f, indent=2)
-
-        print(f"Split saved: {event_file.name} ({len(events)} events)")
-
-
-def _json_decimal_default(obj):
-    """JSON serializer fallback for types returned by streaming parsers (e.g., Decimal)."""
-    if isinstance(obj, Decimal):
-        if obj == obj.to_integral_value():
-            return int(obj)
-        return float(obj)
-    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
-
-
-def stream_split_events_to_jsonl(
-    input_path: Path,
+    events: Dict[str, EventBundle],
     split_dir: Path,
     target_events: Optional[List[str]] = None,
     force: bool = False,
-) -> Dict[str, int]:
-    """One-pass streaming split: write each event into per-category JSONL file."""
+    in_memory_split: bool = False,
+) -> int:
     split_dir.mkdir(parents=True, exist_ok=True)
-    print(f"\nStreaming split to JSONL files: {split_dir}")
+    selected = target_events if target_events else sorted(events.keys())
+    written = 0
 
-    target_set = set(target_events) if target_events else None
-    counts: Dict[str, int] = {}
-    handles: Dict[str, any] = {}
-    skipped_existing: Dict[str, bool] = {}
+    for event_name in selected:
+        if event_name not in events:
+            print(f"Warning: Event not found for split: {event_name}")
+            continue
 
-    try:
-        for event in iter_trace_events(input_path):
-            if not isinstance(event, dict):
-                continue
+        bundle = events[event_name]
+        safe_event = safe_name(event_name)
+        out_path = split_dir / f"{safe_event}_events.{ 'json' if in_memory_split else 'jsonl' }"
 
-            event_name = event.get("cat")
-            if not event_name:
-                continue
+        if out_path.exists() and not force:
+            print(f"Split skipped: {out_path.name} (already exists)")
+            continue
 
-            if target_set is not None and event_name not in target_set:
-                continue
+        payload = _bundle_to_payload(bundle)
+        if in_memory_split:
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+        else:
+            with open(out_path, "w", encoding="utf-8") as f:
+                header = {
+                    "event_name": payload["event_name"],
+                    "meta_type": payload["meta_type"],
+                    "states": payload["states"],
+                }
+                f.write(json.dumps({"__meta__": header}, ensure_ascii=False) + "\n")
+                for record in payload["records"]:
+                    f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-            safe_name = _safe_event_name(event_name)
-            event_file = split_dir / f"{safe_name}_events.jsonl"
+        written += 1
+        print(f"Split saved: {out_path.name} ({len(bundle.records)} records)")
 
-            if event_name not in handles and event_name not in skipped_existing:
-                if event_file.exists() and not force:
-                    skipped_existing[event_name] = True
-                    print(f"Split skipped: {event_file.name} (already exists)")
-                    continue
-
-                handles[event_name] = open(event_file, 'w', encoding='utf-8')
-                counts[event_name] = 0
-
-            if event_name in skipped_existing:
-                continue
-
-            line = json.dumps(event, ensure_ascii=False, default=_json_decimal_default)
-            handles[event_name].write(line + "\n")
-            counts[event_name] += 1
-    finally:
-        for event_name, handle in handles.items():
-            handle.close()
-            safe_name = _safe_event_name(event_name)
-            print(f"Split saved: {safe_name}_events.jsonl ({counts[event_name]} events)")
-
-    return counts
+    return written
 
 
-def _load_split_event_file(event_file: Path) -> Tuple[str, List[dict]]:
-    """Load one split event file and return (event_name, events)."""
-    if event_file.suffix == ".jsonl":
-        events = []
-        with open(event_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                events.append(json.loads(line))
-
-        event_name = event_file.stem.replace("_events", "").replace("_", " ")
-        if events and isinstance(events[0], dict) and events[0].get("cat"):
-            event_name = events[0].get("cat")
-        return event_name, events
-
-    with open(event_file, 'r') as f:
-        payload = json.load(f)
-
-    event_name = payload.get("event_name", event_file.stem.replace("_events", ""))
-    events = payload.get("events", [])
-    if not isinstance(events, list):
-        raise ValueError(f"Invalid events payload in {event_file.name}")
-
-    return event_name, events
-
-
-def generate_charts_from_split(
-    split_dir: Path,
-    chart_output_prefix: Path,
-    selected_events: Optional[List[str]] = None,
-):
-    """Generate charts by reading per-event JSON files one at a time."""
+def load_bundles_from_split(split_dir: Path) -> Dict[str, EventBundle]:
     if not split_dir.exists() or not split_dir.is_dir():
         tools.errorAndExit(f"Split directory not found: {split_dir}")
 
-    split_files = sorted(list(split_dir.glob("*_events.jsonl")) + list(split_dir.glob("*_events.json")))
-    if not split_files:
-        tools.errorAndExit(f"No split event files found in: {split_dir}")
+    files = sorted(list(split_dir.glob("*_events.json")) + list(split_dir.glob("*_events.jsonl")))
+    if not files:
+        tools.errorAndExit(f"No split files found in: {split_dir}")
 
-    selected_set = set(selected_events) if selected_events else None
-    print(f"\nGenerating charts from split files ({len(split_files)} files)...")
-
-    processed = 0
-    for event_file in split_files:
+    loaded: Dict[str, EventBundle] = {}
+    for path in files:
         try:
-            event_name, events = _load_split_event_file(event_file)
-        except Exception as exc:
-            print(f"Warning: Failed to load {event_file.name}: {exc}")
-            continue
-
-        if selected_set is not None and event_name not in selected_set:
-            continue
-
-        print(f"\n[{event_name}] from {event_file.name}")
-        metrics = analyze_events(events, event_name)
-        create_event_chart(metrics, chart_output_prefix)
-
-        print(f"  Events: {metrics.total_events}")
-        print(f"  Duration: {metrics.duration / 1e6:.2f} seconds")
-        if metrics.peak_value > 0:
-            if metrics.peak_value >= 1e6:
-                print(f"  Peak: {metrics.peak_value / 1e6:.2f} MB")
+            if path.suffix == ".json":
+                with open(path, "r", encoding="utf-8") as f:
+                    payload = json.load(f)
+                bundle = _payload_to_bundle(payload)
             else:
-                print(f"  Peak: {metrics.peak_value:.2f}")
+                meta = {"event_name": path.stem.replace("_events", "").replace("_", " "), "meta_type": "", "states": []}
+                records: List[dict] = []
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        obj = json.loads(line)
+                        if isinstance(obj, dict) and "__meta__" in obj:
+                            if isinstance(obj["__meta__"], dict):
+                                meta.update(obj["__meta__"])
+                            continue
+                        if isinstance(obj, dict):
+                            records.append(obj)
 
-        processed += 1
+                payload = {
+                    "event_name": meta.get("event_name", ""),
+                    "meta_type": meta.get("meta_type", ""),
+                    "states": meta.get("states", []),
+                    "records": records,
+                }
+                bundle = _payload_to_bundle(payload)
 
-    print(f"\n✓ Chart generation complete! Processed {processed} event type(s).")
+            if not bundle.event_name:
+                bundle.event_name = path.stem.replace("_events", "").replace("_", " ")
+
+            loaded[bundle.event_name] = bundle
+        except Exception as exc:
+            print(f"Warning: failed to load split file {path.name}: {exc}")
+
+    return loaded
 
 
-def main():
-    """Main execution flow."""
-    total_start = time.perf_counter()
-    print(f"[timer] start: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+def detect_chart_type(bundle: EventBundle) -> str:
+    name = bundle.event_name.lower()
 
+    if "ddr bandwidth requests by component" in name:
+        return "ddr_scatter"
+
+    if "memory subsystem (memss) p-state" in name:
+        return "duration_frequency"
+
+    if "wake" in name or "state" in name or "c-state" in name or "p-state" in name:
+        return "timeline"
+    if bundle.meta_type.upper() == "TRACED_EVENT" and bundle.states:
+        return "timeline"
+
+    if "bandwidth" in name or "power" in name or "frequency" in name or "voltage" in name:
+        return "numeric"
+
+    # Fallback by data shape: many metric labels often means state-like traces.
+    unique_labels = {r.metric_label for r in bundle.records}
+    if len(unique_labels) > 20 and bundle.states:
+        return "timeline"
+
+    return "numeric"
+
+
+def render_duration_frequency_chart(bundle: EventBundle, output_dir: Path, max_series: int) -> Optional[Path]:
+    """Render duration-based frequency segments: y=value, x spans [x_start, x_end]."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print(f"Warning: matplotlib not installed, skipping chart for {bundle.event_name}")
+        return None
+
+    series_counts: Dict[str, int] = {}
+    for r in bundle.records:
+        series_counts[r.series] = series_counts.get(r.series, 0) + 1
+
+    top_series = [s for s, _ in sorted(series_counts.items(), key=lambda kv: kv[1], reverse=True)[:max_series]]
+    allowed = set(top_series)
+    records = [r for r in bundle.records if r.series in allowed]
+    if not records:
+        return None
+
+    cmap = plt.get_cmap("tab10")
+    series_color = {series: cmap(i % 10) for i, series in enumerate(top_series)}
+
+    fig, ax = plt.subplots(figsize=(16, 9))
+    for r in records:
+        x0 = r.x_start / 1e6
+        x1 = r.x_end / 1e6
+        if x1 < x0:
+            x1 = x0
+        ax.hlines(y=r.value, xmin=x0, xmax=x1, color=series_color.get(r.series, "tab:blue"), linewidth=2.5, alpha=0.9)
+
+    ax.set_title(f"{bundle.event_name} - Frequency Over Duration")
+    ax.set_xlabel("Time (seconds)")
+    ax.set_ylabel("Frequency")
+    ax.grid(True, alpha=0.25)
+
+    if len(top_series) > 1:
+        handles = [plt.Line2D([0], [0], color=series_color[s], lw=2.5, label=s) for s in top_series]
+        ax.legend(handles=handles, loc="best", fontsize=8, ncol=2)
+
+    fig.tight_layout()
+    out_path = output_dir / f"{safe_name(bundle.event_name)}_duration_frequency_chart.png"
+    fig.savefig(out_path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
+def render_ddr_scatter_chart(bundle: EventBundle, output_dir: Path, max_series: int) -> Optional[Path]:
+    """Render DDR bandwidth as scatter points with MB/s on Y-axis."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print(f"Warning: matplotlib not installed, skipping chart for {bundle.event_name}")
+        return None
+
+    per_series: Dict[str, List[Tuple[float, float]]] = {}
+    total_read_by_time: Dict[float, float] = {}
+    total_write_by_time: Dict[float, float] = {}
+    for r in bundle.records:
+        if r.series not in per_series:
+            per_series[r.series] = []
+        # Use interval midpoint as the sample time for scatter plotting.
+        midpoint = ((r.x_start + r.x_end) * 0.5) / 1e6
+        per_series[r.series].append((midpoint, r.value))
+
+        label_upper = r.series.upper()
+        if "READ" in label_upper:
+            total_read_by_time[midpoint] = total_read_by_time.get(midpoint, 0.0) + r.value
+        if "WRITE" in label_upper:
+            total_write_by_time[midpoint] = total_write_by_time.get(midpoint, 0.0) + r.value
+
+    if not per_series:
+        return None
+
+    top_series = sorted(per_series.keys(), key=lambda s: len(per_series[s]), reverse=True)[:max_series]
+
+    fig, ax = plt.subplots(figsize=(16, 9))
+    for series in top_series:
+        points = sorted(per_series[series], key=lambda p: p[0])
+        x = [p[0] for p in points]
+        y = [p[1] for p in points]
+        ax.scatter(x, y, s=24, alpha=0.82, label=series)
+
+    if total_read_by_time:
+        read_points = sorted(total_read_by_time.items(), key=lambda p: p[0])
+        read_x = [p[0] for p in read_points]
+        read_y = [p[1] for p in read_points]
+        ax.plot(
+            read_x,
+            read_y,
+            color="black",
+            linewidth=2.4,
+            marker="o",
+            markersize=4,
+            label="Total READ",
+            zorder=5,
+        )
+
+    if total_write_by_time:
+        write_points = sorted(total_write_by_time.items(), key=lambda p: p[0])
+        write_x = [p[0] for p in write_points]
+        write_y = [p[1] for p in write_points]
+        ax.plot(
+            write_x,
+            write_y,
+            color="dimgray",
+            linewidth=2.4,
+            marker="s",
+            markersize=4,
+            label="Total WRITE",
+            zorder=5,
+        )
+
+    ax.set_title(f"{bundle.event_name} - DDR Bandwidth Scatter")
+    ax.set_xlabel("Time (seconds)")
+    ax.set_ylabel("MB/s")
+    ax.grid(True, alpha=0.25)
+    if len(top_series) > 1:
+        ax.legend(loc="best", fontsize=8, ncol=2)
+
+    fig.tight_layout()
+    out_path = output_dir / f"{safe_name(bundle.event_name)}_scatter_chart.png"
+    fig.savefig(out_path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
+def render_timeline_chart(bundle: EventBundle, output_dir: Path, max_series: int) -> Optional[Path]:
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print(f"Warning: matplotlib not installed, skipping chart for {bundle.event_name}")
+        return None
+
+    # Keep chart readable by limiting to top series by event count.
+    series_counts: Dict[str, int] = {}
+    for r in bundle.records:
+        series_counts[r.series] = series_counts.get(r.series, 0) + 1
+
+    top_series = [s for s, _ in sorted(series_counts.items(), key=lambda kv: kv[1], reverse=True)[:max_series]]
+    allowed = set(top_series)
+    records = [r for r in bundle.records if r.series in allowed]
+    if not records:
+        return None
+
+    series_index = {s: i for i, s in enumerate(top_series)}
+
+    # Assign deterministic colors by metric label.
+    labels = sorted({r.metric_label for r in records})
+    cmap = plt.get_cmap("tab20")
+    color_map = {label: cmap(i % 20) for i, label in enumerate(labels)}
+
+    fig, ax = plt.subplots(figsize=(16, 9))
+
+    for r in records:
+        y = series_index[r.series]
+        x0 = r.x_start / 1e6
+        x1 = r.x_end / 1e6
+        if x1 < x0:
+            x1 = x0
+        ax.hlines(y=y, xmin=x0, xmax=x1, color=color_map[r.metric_label], linewidth=3, alpha=0.9)
+
+    ax.set_title(f"{bundle.event_name} - Timeline")
+    ax.set_xlabel("Time (seconds)")
+    ax.set_ylabel("Series")
+    ax.set_yticks(list(series_index.values()))
+    ax.set_yticklabels(top_series)
+    ax.grid(True, axis="x", alpha=0.25)
+
+    # Limit legend size to keep chart readable.
+    legend_labels = labels[:12]
+    handles = [plt.Line2D([0], [0], color=color_map[label], lw=3, label=label) for label in legend_labels]
+    if handles:
+        ax.legend(handles=handles, loc="best", fontsize=8, ncol=2)
+
+    fig.tight_layout()
+    out_path = output_dir / f"{safe_name(bundle.event_name)}_timeline_chart.png"
+    fig.savefig(out_path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
+def render_numeric_chart(bundle: EventBundle, output_dir: Path, max_series: int) -> Optional[Path]:
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print(f"Warning: matplotlib not installed, skipping chart for {bundle.event_name}")
+        return None
+
+    # Aggregate value per point timestamp per series (sum over y keys in same point already split as records).
+    per_series: Dict[str, List[Tuple[float, float]]] = {}
+    for r in bundle.records:
+        if r.series not in per_series:
+            per_series[r.series] = []
+        per_series[r.series].append((r.x_start / 1e6, r.value))
+
+    if not per_series:
+        return None
+
+    top_series = sorted(per_series.keys(), key=lambda s: len(per_series[s]), reverse=True)[:max_series]
+
+    fig, ax = plt.subplots(figsize=(16, 9))
+    for series in top_series:
+        points = sorted(per_series[series], key=lambda p: p[0])
+        x = [p[0] for p in points]
+        y = [p[1] for p in points]
+        ax.plot(x, y, marker="o", markersize=2, linewidth=1, alpha=0.85, label=series)
+
+    ax.set_title(f"{bundle.event_name} - Value Trend")
+    ax.set_xlabel("Time (seconds)")
+    ax.set_ylabel("Value")
+    ax.grid(True, alpha=0.25)
+    if len(top_series) > 1:
+        ax.legend(loc="best", fontsize=8, ncol=2)
+
+    fig.tight_layout()
+    out_path = output_dir / f"{safe_name(bundle.event_name)}_value_chart.png"
+    fig.savefig(out_path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
+def save_event_summary(bundle: EventBundle, output_dir: Path, chart_type: str) -> Path:
+    labels = sorted({r.metric_label for r in bundle.records})
+    series = sorted({r.series for r in bundle.records})
+
+    summary = {
+        "event_name": bundle.event_name,
+        "meta_type": bundle.meta_type,
+        "chart_type": chart_type,
+        "total_records": len(bundle.records),
+        "series_count": len(series),
+        "metric_label_count": len(labels),
+        "metric_labels_preview": labels[:50],
+        "states_count": len(bundle.states),
+        "states_preview": bundle.states[:50],
+        "start_ts": min((r.x_start for r in bundle.records), default=0),
+        "end_ts": max((r.x_end for r in bundle.records), default=0),
+    }
+
+    out_path = output_dir / f"{safe_name(bundle.event_name)}_summary.json"
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2, ensure_ascii=False)
+    return out_path
+
+
+def main() -> None:
     args = parse_arguments()
     script_dir = Path(__file__).parent
-    
-    # Stage-2 mode: chart generation from existing split files
+
+    if args.max_series <= 0:
+        tools.errorAndExit("--max-series must be > 0")
+
+    if args.max_points_per_series <= 0:
+        tools.errorAndExit("--max-points-per-series must be > 0")
+
+    input_path: Optional[Path] = None
+    events: Dict[str, EventBundle] = {}
+
     if args.from_split:
         split_dir = Path(args.from_split)
-        if args.output:
-            chart_output_prefix = Path(args.output)
-        else:
-            chart_output_prefix = split_dir / "from_split_analysis"
-
-        stage_start = time.perf_counter()
-        generate_charts_from_split(split_dir, chart_output_prefix, selected_events=args.events)
-        stage_elapsed = time.perf_counter() - stage_start
-        total_elapsed = time.perf_counter() - total_start
-        print(f"[timer] stage from-split sec: {stage_elapsed:.3f}")
-        print(f"[timer] end: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"[timer] total sec: {total_elapsed:.3f}")
-        return
-
-    # Stage-1 mode: split from source trace
-    if args.input:
-        input_path = Path(args.input)
+        events = load_bundles_from_split(split_dir)
+        if not events:
+            tools.errorAndExit("No events loaded from split directory")
+        output_dir = Path(args.output) if args.output else split_dir.parent / f"{split_dir.name}_analysis"
     else:
-        input_path = select_file_dialog(script_dir)
-        if not input_path:
-            tools.errorAndExit("No file selected")
+        if args.input:
+            input_path = Path(args.input)
+        else:
+            input_path = select_file_dialog(script_dir)
+            if not input_path:
+                tools.errorAndExit("No file selected")
 
-    if not input_path.exists():
-        tools.errorAndExit(f"File not found: {input_path}")
+        if not input_path.exists():
+            tools.errorAndExit(f"File not found: {input_path}")
 
-    print(f"Processing: {input_path.name}")
+        output_dir = Path(args.output) if args.output else input_path.parent / f"{input_path.stem}_analysis"
+        print(f"Processing: {input_path}")
+        data = load_json(input_path)
+        events = parse_new_swjson(data, max_points_per_series=args.max_points_per_series)
+        if not events:
+            tools.errorAndExit("No events found under root data object")
 
-    # Handle --list-events flag using lightweight in-memory scan
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    all_event_names = sorted(events.keys())
+
     if args.list_events:
-        stage_start = time.perf_counter()
-        data = load_swjson(input_path)
-        if not data:
-            tools.errorAndExit(f"Failed to load {input_path}")
-        events_by_category = parse_trace_events(data)
-        if not events_by_category:
-            tools.errorAndExit("No events found in file")
-        print(f"[timer] stage list-events sec: {time.perf_counter() - stage_start:.3f}")
-
-        print(f"\nAvailable event categories ({len(events_by_category)}):")
-        for i, category in enumerate(sorted(events_by_category.keys()), 1):
-            event_count = len(events_by_category[category])
-            print(f"  {i:2d}. {category} ({event_count} events)")
+        print(f"\nAvailable events ({len(all_event_names)}):")
+        for i, event_name in enumerate(all_event_names, 1):
+            print(f"  {i:2d}. {event_name}")
         return
-    
-    # Set output path
-    if args.output:
-        output_path = Path(args.output)
+
+    if args.events:
+        target_events = [e for e in args.events if e in events]
+        for e in args.events:
+            if e not in events:
+                print(f"Warning: Event not found: {e}")
+        if not target_events:
+            tools.errorAndExit("None of the requested events exist in input")
     else:
-        output_path = input_path.parent / f"{input_path.stem}_analysis"
+        target_events = all_event_names
 
-    if args.split_dir:
-        split_dir = Path(args.split_dir)
-    else:
-        split_dir = output_path.parent / f"{output_path.stem}_events_stream"
-
-    target_events = args.events if args.events else None
-    if target_events:
-        print(f"\nPreparing {'legacy in-memory' if args.in_memory_split else 'streaming'} split for {len(target_events)} selected event type(s)...")
-    else:
-        print(f"\nPreparing {'legacy in-memory' if args.in_memory_split else 'streaming'} split for all event types...")
-
-    stage_start = time.perf_counter()
-    if args.in_memory_split:
-        data = load_swjson(input_path)
-        if not data:
-            tools.errorAndExit(f"Failed to load {input_path}")
-        print(f"[timer] stage load sec: {time.perf_counter() - stage_start:.3f}")
-
-        stage_start = time.perf_counter()
-        events_by_category = parse_trace_events(data)
-        if not events_by_category:
-            tools.errorAndExit("No events found in file")
-        print(f"[timer] stage parse/group sec: {time.perf_counter() - stage_start:.3f}")
-
-        if target_events:
-            for event_name in target_events:
-                if event_name not in events_by_category:
-                    print(f"Warning: Event '{event_name}' not found in file")
-            target_events = [event_name for event_name in target_events if event_name in events_by_category]
-            if not target_events:
-                tools.errorAndExit("None of the specified events were found")
-        else:
-            target_events = list(events_by_category.keys())
-
-        stage_start = time.perf_counter()
-        split_events_to_files(
-            events_by_category,
-            target_events,
-            split_dir,
-            force=args.force,
-        )
-    else:
-        event_counts = stream_split_events_to_jsonl(
-            input_path,
-            split_dir,
+    if args.from_split is None:
+        default_split_dir = output_dir.parent / f"{output_dir.stem}_events_stream"
+        split_dir = Path(args.split_dir) if args.split_dir else default_split_dir
+        split_written = split_events_to_files(
+            events,
+            split_dir=split_dir,
             target_events=target_events,
             force=args.force,
+            in_memory_split=args.in_memory_split,
         )
-        if target_events and not event_counts:
-            print("Warning: No matching events were written during stream split.")
+        print(f"\nSplit stage complete. Files written: {split_written}. Dir: {split_dir}")
 
-    print(f"[timer] stage split sec: {time.perf_counter() - stage_start:.3f}")
+        if args.split_only:
+            print("Split-only mode: skipping chart generation.")
+            return
 
-    if args.split_only:
-        total_elapsed = time.perf_counter() - total_start
-        print(f"\n✓ Split complete! Per-event files saved to: {split_dir}")
-        print(f"[timer] end: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"[timer] total sec: {total_elapsed:.3f}")
-        return
+    print(f"\nGenerating charts for {len(target_events)} event(s)...")
+    generated = 0
 
-    stage_start = time.perf_counter()
-    generate_charts_from_split(split_dir, output_path, selected_events=target_events)
-    print(f"[timer] stage chart sec: {time.perf_counter() - stage_start:.3f}")
+    for event_name in target_events:
+        bundle = events[event_name]
+        if not bundle.records:
+            print(f"[{event_name}] skipped (no records)")
+            continue
 
-    total_elapsed = time.perf_counter() - total_start
-    print(f"\n✓ Pipeline complete! Results saved to: {output_path.parent}")
-    print(f"[timer] end: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"[timer] total sec: {total_elapsed:.3f}")
+        chart_type = detect_chart_type(bundle)
+        print(f"[{event_name}] records={len(bundle.records)} chart={chart_type}")
+
+        if chart_type == "timeline":
+            chart_path = render_timeline_chart(bundle, output_dir, args.max_series)
+        elif chart_type == "duration_frequency":
+            chart_path = render_duration_frequency_chart(bundle, output_dir, args.max_series)
+        elif chart_type == "ddr_scatter":
+            chart_path = render_ddr_scatter_chart(bundle, output_dir, args.max_series)
+        else:
+            chart_path = render_numeric_chart(bundle, output_dir, args.max_series)
+
+        summary_path = save_event_summary(bundle, output_dir, chart_type)
+        if chart_path:
+            generated += 1
+            print(f"  chart  : {chart_path.name}")
+        print(f"  summary: {summary_path.name}")
+
+    print(f"\nDone. Charts generated: {generated}. Output: {output_dir}")
 
 
 if __name__ == "__main__":

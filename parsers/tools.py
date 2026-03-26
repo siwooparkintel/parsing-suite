@@ -4,6 +4,46 @@ import os
 import json
 import numpy as np
 
+
+def tk_dialogs(
+    dialog_type="open_file",
+    title="Select a file",
+    initial_dir=None,
+    filetypes=None,
+):
+    """Small tkinter dialog helper for file/folder interactions.
+
+    Supported dialog_type values:
+    - open_file
+    - open_folder
+    """
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except Exception:
+        return None
+
+    root = tk.Tk()
+    root.withdraw()
+
+    selected = None
+    try:
+        if dialog_type == "open_folder":
+            selected = filedialog.askdirectory(
+                title=title,
+                initialdir=initial_dir,
+            )
+        else:
+            selected = filedialog.askopenfilename(
+                title=title,
+                initialdir=initial_dir,
+                filetypes=filetypes or [("All files", "*.*")],
+            )
+    finally:
+        root.destroy()
+
+    return selected if selected else None
+
 def parseNumeric(text) :
     return ''.join(re.findall(r'[0-9.]', text))
 def parseDevice(text) :

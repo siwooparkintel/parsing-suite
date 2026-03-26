@@ -1,1 +1,1 @@
-\\10.54.63.126\Pnpext\Siwoo\data\WW2508.2_PTL_SOTR_endur\XeSS_Pf_End\gameSOTR_005\socwatch
+C:\Users\siwoopar\code\parsing-suite\temp

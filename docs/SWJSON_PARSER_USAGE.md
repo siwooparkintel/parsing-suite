@@ -1,107 +1,119 @@
-# SWJSON Parser - Usage Guide
+# swjson_parser.py - Usage Guide (Socwatch 2025.3.0 or older, SWJSON Structure)
 
-Current `swjson_parser.py` uses a **two-stage pipeline** with **streaming split as default**.
+This guide is for [parsing-suite/swjson_parser.py](parsing-suite/swjson_parser.py), which parses the newer SocWatch JSON layout.
 
-## Current Workflow
+## Supported Input Structure
 
-1. **Stage-1 split (default: streaming)**
-   - Reads source `.swjson` / `.json`
-   - Splits by event category (`cat`)
-   - Writes per-event files as `*_events.jsonl`
+The parser expects:
 
-2. **Stage-2 chart generation**
-   - Reads split files one event type at a time
-   - Generates chart PNG files
+- Root `data` dictionary with event names as keys
+- Per event:
+  - `metaData` (can include `states` list)
+  - `data` dictionary of series
+- Per series:
+  - `points` list with entries like:
 
-This design minimizes memory usage for large traces.
+```json
+{
+  "x": 39564,
+  "x1": 39565,
+  "y": {
+    "70": 1.0
+  }
+}
+```
 
-## CLI Options
+## State Index Decoding
+
+When `y` uses numeric keys and `metaData.states` exists:
+
+- Key `"70"` maps to `metaData.states[70]`
+- If index is invalid or states are missing, the original key is kept
+
+This enables readable labels for traced/state-style events.
+
+## Chart Routing
+
+The parser routes each event to a chart function based on event characteristics:
+
+- `timeline` chart:
+  - Wakeups, C-state, P-state, traced events with state-heavy labels
+- `numeric` chart:
+  - Bandwidth, power, frequency, voltage, and value-style metrics
+
+Each processed event generates one chart plus one summary JSON.
+
+## CLI
 
 ```bash
 python swjson_parser.py [options]
 ```
 
-Key options:
+Options:
 
 - `-i, --input` input `.swjson` / `.json`
-- `-o, --output` output prefix path
-- `-e, --events` specific event names to include
-- `--list-events` list event categories in input
-- `--split-only` run stage-1 only (no chart generation)
-- `--from-split <dir>` run stage-2 from existing split files
-- `--split-dir <dir>` output directory for split files
-- `--force` overwrite existing split files
-- `--in-memory-split` use legacy in-memory split (default is streaming split)
+- `-o, --output` output folder path (default: `<input_stem>_analysis`)
+- `-e, --events` specific event names to process
+- `--list-events` list events in file and exit
+- `--max-series` max series rendered per event chart (default: `16`)
+- `--max-points-per-series` max sampled points per series before charting (default: `3000`)
 
 ## Examples
 
-### 1) List events
+### 1) List all event names
+
 ```bash
-python swjson_parser.py -i "path/to/file.swjson" --list-events
+python swjson_parser.py -i "temp/yt_si2.s5.pretty.json" --list-events
 ```
 
-### 2) Split only (default streaming)
+### 2) Parse one state-style event
+
 ```bash
-python swjson_parser.py -i "path/to/file.swjson" --split-only --split-dir "temp/swjson_split_stream"
+python swjson_parser.py -i "temp/yt_si2.s5.pretty.json" -e "Core Wakeups (OS)"
 ```
 
-### 3) Split only for selected events
+### 3) Parse two selected events
+
 ```bash
-python swjson_parser.py -i "path/to/file.swjson" --split-only -e "CPU P-State/Frequency" "Temperature Metrics"
+python swjson_parser.py -i "temp/yt_si2.s5.pretty.json" -e "Core Wakeups (OS)" "IO Bandwidth"
 ```
 
-### 4) Generate charts from existing split files
+### 4) Process all events to a target folder
+
 ```bash
-python swjson_parser.py --from-split "temp/swjson_split_stream" -o "temp/swjson_analysis"
+python swjson_parser.py -i "temp/yt_si2.s5.pretty.json" -o "temp/new_swjson_parser_test"
 ```
 
-### 5) Full pipeline in one run
-```bash
-python swjson_parser.py -i "path/to/file.swjson" -o "temp/gameSOTR_analysis"
-```
+### 5) Limit chart load for very large traces
 
-### 6) Force overwrite split files
 ```bash
-python swjson_parser.py -i "path/to/file.swjson" --split-only --split-dir "temp/swjson_split_stream" --force
-```
-
-### 7) Legacy behavior for comparison
-```bash
-python swjson_parser.py -i "path/to/file.swjson" --split-only --in-memory-split
+python swjson_parser.py -i "temp/yt_si2.s5.pretty.json" --max-series 8 --max-points-per-series 1000
 ```
 
 ## Output Files
 
-### Split stage output
+For each event:
 
-- Streaming default: `*_events.jsonl`
-- Legacy mode: `*_events.json`
+- Timeline chart: `*_timeline_chart.png`
+- Numeric chart: `*_value_chart.png`
+- Summary: `*_summary.json`
 
-### Chart stage output
+Summary includes:
 
-- `{output_stem}_{Event_Name}_chart.png`
-
-> Chart drawing is event-type aware (bandwidth/state/sensor/generic dispatch).
-
-## Timers
-
-The parser prints timing information:
-
-- `[timer] start`, `[timer] end`, `[timer] total sec`
-- stage-level timers such as split/chart/from-split
-
-Use these to compare streaming vs in-memory performance.
+- `event_name`, `meta_type`, `chart_type`
+- `total_records`, `series_count`, `metric_label_count`
+- `states_count` with preview fields
+- `start_ts`, `end_ts`
 
 ## Dependencies
 
-- Python 3.7+
-- `ijson` (recommended for true streaming split)
-- `matplotlib` (required only for chart generation)
+- Python 3.8+
+- `matplotlib` for charts
 
-Install recommended packages:
+Install:
 
 ```bash
-pip install ijson matplotlib
+pip install matplotlib
 ```
 
-If `matplotlib` is missing, split mode still works; chart stage is skipped with warning.
+If `matplotlib` is missing, parser will skip chart generation with warning.

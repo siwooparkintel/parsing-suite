@@ -19,7 +19,7 @@ A comprehensive framework for parsing and analyzing diverse workload performance
 | **socwatch_pp.py** | SocWatch ETL batch post-processor | [Details](./docs/socwatch_pp.md) |
 | **Teams++.py** | Teams/AI mixed-source parser with Procyon integration | [Details](./docs/teams-plus-plus.md) |
 | **trace_power_slicer.py** | Power trace slicer by rails and time ranges | [Details](./docs/README_trace_slicer.md) |
-| **swjson_parser.py** | Socwatch JSON event analyzer with visualization | [Details](./docs/SWJSON_PARSER_USAGE.md) |
+| **newSW_json_parser.py** | Socwatch JSON event analyzer with visualization | [Details](./docs/newSW_json_parser_usage.md) |
 | **vtune_pwr_parser.py** | VTune .pwr parser with ETL auto-generation and streaming event export | Script help: `python vtune_pwr_parser.py --help` |
 
 ## Quick Start
@@ -74,9 +74,9 @@ python socwatch_pp.py
 
 **For Socwatch JSON analysis:**
 ```bash
-python swjson_parser.py -i <swjson_file> -e "Event Name 1" "Event Name 2"
+python newSW_json_parser.py -i <swjson_file> -e "Event Name 1" "Event Name 2"
 # Or interactive mode with file dialog:
-python swjson_parser.py
+python newSW_json_parser.py
 ```
 
 **For VTune .pwr parsing (with ETL fallback):**
@@ -101,7 +101,7 @@ python parsers/fps_img_parser.py <image_or_folder> --debug
 - **SocWatch ETL processing**: See [socwatch_pp](./docs/socwatch_pp.md) for batch .etl file processing
 - **Teams/Procyon mixed parsing**: See [Teams++ guide](./docs/teams-plus-plus.md) for recursive dataset parsing and Excel export
 - **Power trace slicing**: See [trace_power_slicer](./docs/README_trace_slicer.md) for workload analysis
-- **Socwatch JSON analysis**: See [swjson_parser](./docs/SWJSON_PARSER_USAGE.md) for event visualization
+- **Socwatch JSON analysis**: See [newSW_json_parser](./docs/newSW_json_parser_usage.md) for event visualization
 - **Best practices**: Review individual parser documentation in [docs](./docs/) folder
 
 ## Supported Data Types
