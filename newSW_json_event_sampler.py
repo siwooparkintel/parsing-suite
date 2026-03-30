@@ -1,5 +1,5 @@
 """
-SWJSON Parser - Analyze and visualize data from .swjson trace files
+SW JSON Event Sampler - Analyze and visualize data from .json trace files
 """
 
 import json
@@ -55,12 +55,12 @@ class EventMetrics:
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        prog='SWJSON Parser',
-        description='Parse and analyze .swjson or .json trace files for event metrics and visualization'
+        prog='SW JSON Event Sampler',
+        description='Parse and analyze .json trace files for event metrics and visualization'
     )
     parser.add_argument(
         '-i', '--input',
-        help='Input .swjson or .json file path'
+        help='Input .json file path'
     )
     parser.add_argument(
         '-o', '--output',
@@ -92,6 +92,16 @@ def parse_arguments() -> argparse.Namespace:
         action='store_true',
         help='Force re-collect and overwrite sample JSON files, ignoring existing-sample skip checks'
     )
+    parser.add_argument(
+        '--chart',
+        action='store_true',
+        help='Generate charts for each event (works with -i source file or --from-split)'
+    )
+    parser.add_argument(
+        '--from-split',
+        metavar='DIR',
+        help='Directory containing pre-split *_events.jsonl files; generate charts without re-reading source'
+    )
     return parser.parse_args()
 
 
@@ -115,9 +125,9 @@ def select_file_dialog(script_dir: Path) -> Optional[Path]:
     
     # Show file dialog
     file_path = filedialog.askopenfilename(
-        title="Select a .swjson or .json file",
+        title="Select a .json file",
         initialdir=initial_dir,
-        filetypes=[("JSON files", "*.swjson *.json"), ("SWJSON files", "*.swjson"), ("JSON files", "*.json"), ("All files", "*.*")]
+        filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
     )
     
     if file_path:
@@ -129,9 +139,9 @@ def select_file_dialog(script_dir: Path) -> Optional[Path]:
 
 
 def load_swjson(file_path: Path) -> Optional[dict]:
-    """Load and parse a .swjson or .json file."""
-    if file_path.suffix not in ['.swjson', '.json']:
-        print(f"Error: Invalid file extension. Expected .swjson or .json, got {file_path.suffix}")
+    """Load and parse a .json file."""
+    if file_path.suffix != '.json':
+        print(f"Error: Invalid file extension. Expected .json, got {file_path.suffix}")
         return None
     
     try:
@@ -247,24 +257,49 @@ def create_event_chart(metrics: EventMetrics, output_path: Path):
     elif "C-State" in metrics.event_name:
         y_label = "Residency (µs)"
     
+    # For Bandwidth events: compute total BW per timestamp (sum of all channels at same ts)
+    is_bandwidth = "Bandwidth" in metrics.event_name
+    total_bw_series = None
+    if is_bandwidth and len(metric_data) >= 1:
+        from collections import defaultdict
+        total_by_ts: dict = defaultdict(float)
+        for timestamp, value, _ in metrics.chart_data:
+            converted = value / 1e6 if value >= 1e6 else value
+            total_by_ts[timestamp / 1e6] += converted
+        if total_by_ts:
+            sorted_ts = sorted(total_by_ts.keys())
+            total_bw_series = (sorted_ts, [total_by_ts[t] for t in sorted_ts])
+
     # Create plot
     plt.figure(figsize=(14, 8))
-    
+
     for metric_name, data in metric_data.items():
         label = metric_name if metric_name else metrics.event_name
-        plt.scatter(data['time'], data['values'], label=label, s=10, alpha=0.7)
-    
+        plt.scatter(data['time'], data['values'], label=label, s=10, alpha=0.5)
+
+    # Overlay Total Memory BW as a bold line on top (Bandwidth events only)
+    if total_bw_series is not None:
+        plt.plot(
+            total_bw_series[0],
+            total_bw_series[1],
+            label="Total Memory BW",
+            color="black",
+            linewidth=1.5,
+            alpha=0.85,
+            zorder=10,
+        )
+
     plt.xlabel('Time (seconds)', fontsize=12)
     plt.ylabel(y_label, fontsize=12)
-    
+
     # Clean title
     title = metrics.event_name.replace("(", "").replace(")", "")
     plt.title(f'{title} Over Time', fontsize=14, fontweight='bold')
-    
-    # Only show legend if there are multiple metrics
-    if len(metric_data) > 1:
+
+    # Always show legend for bandwidth (total line is always added)
+    if len(metric_data) > 1 or total_bw_series is not None:
         plt.legend(loc='best', fontsize=9, ncol=2)
-    
+
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     
@@ -274,6 +309,70 @@ def create_event_chart(metrics: EventMetrics, output_path: Path):
     plt.savefig(chart_path, dpi=300, bbox_inches='tight')
     print(f"Chart saved: {chart_path.name}")
     plt.close()
+
+
+def load_events_from_jsonl(jsonl_path: Path) -> List[dict]:
+    """Load all events from a per-event JSONL split file."""
+    events = []
+    try:
+        with open(jsonl_path, 'r') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError as e:
+                    print(f"Warning: Skipping malformed line {line_num} in {jsonl_path.name}: {e}")
+    except FileNotFoundError:
+        print(f"Error: Split file not found - {jsonl_path}")
+    return events
+
+
+def list_events_from_split_dir(split_dir: Path) -> Dict[str, Path]:
+    """Discover per-event JSONL files in a split directory.
+
+    Returns a dict mapping event_name -> jsonl_path.
+    Event name is inferred from the filename suffix pattern *_events.jsonl.
+    """
+    event_files: Dict[str, Path] = {}
+    for jsonl_file in sorted(split_dir.glob('*_events.jsonl')):
+        # Filename: <stem>_events.jsonl  -> strip trailing _events
+        stem = jsonl_file.stem  # e.g. "DDR_Bandwidth_Requests_by_Component_events"
+        if stem.endswith('_events'):
+            safe_name = stem[:-len('_events')]
+        else:
+            safe_name = stem
+        # Reverse sanitization: underscores may represent spaces or slashes;
+        # use the cat field from the first line for the real event name.
+        try:
+            with open(jsonl_file, 'r') as f:
+                first_line = f.readline().strip()
+            if first_line:
+                first_event = json.loads(first_line)
+                event_name = first_event.get('cat', safe_name)
+            else:
+                event_name = safe_name
+        except Exception:
+            event_name = safe_name
+        event_files[event_name] = jsonl_file
+    return event_files
+
+
+def generate_charts_from_events(
+    events_by_category: Dict[str, List[dict]],
+    target_events: List[str],
+    output_path: Path,
+):
+    """Analyze events and generate a chart PNG for each target event."""
+    print(f"\nGenerating charts for {len(target_events)} event type(s)...")
+    for event_name in target_events:
+        events = events_by_category.get(event_name, [])
+        if not events:
+            print(f"Warning: No events found for '{event_name}', skipping chart")
+            continue
+        metrics = analyze_events(events, event_name)
+        create_event_chart(metrics, output_path)
 
 
 def save_event_results(metrics: EventMetrics, output_path: Path):
@@ -372,7 +471,63 @@ def main():
     """Main execution flow."""
     args = parse_arguments()
     script_dir = Path(__file__).parent
-    
+
+    # ------------------------------------------------------------------ #
+    # Mode A: --from-split  (chart from pre-split JSONL files, no source) #
+    # ------------------------------------------------------------------ #
+    if args.from_split:
+        split_dir = Path(args.from_split)
+        if not split_dir.is_dir():
+            tools.errorAndExit(f"Split directory not found: {split_dir}")
+
+        print(f"Loading split events from: {split_dir}")
+        event_files = list_events_from_split_dir(split_dir)
+        if not event_files:
+            tools.errorAndExit(f"No *_events.jsonl files found in: {split_dir}")
+
+        print(f"Found {len(event_files)} event file(s)")
+
+        # Handle --list-events for split dir
+        if args.list_events:
+            print(f"\nAvailable events in split directory ({len(event_files)}):")
+            for i, name in enumerate(sorted(event_files.keys()), 1):
+                print(f"  {i:2d}. {name}")
+            return
+
+        # Filter to requested events if -e was given
+        if args.events:
+            target_events = [e for e in args.events if e in event_files]
+            missing = [e for e in args.events if e not in event_files]
+            for m in missing:
+                print(f"Warning: Event '{m}' not found in split directory")
+            if not target_events:
+                tools.errorAndExit("None of the specified events were found")
+        else:
+            target_events = list(event_files.keys())
+
+        # Set output path
+        output_path = Path(args.output) if args.output else split_dir.parent / f"{split_dir.name}_charts"
+        output_path.mkdir(parents=True, exist_ok=True)
+        output_base = output_path / split_dir.name
+
+        # Load each JSONL and generate chart
+        print(f"\nGenerating charts for {len(target_events)} event type(s)...")
+        for event_name in target_events:
+            print(f"  Loading: {event_files[event_name].name}")
+            events = load_events_from_jsonl(event_files[event_name])
+            if not events:
+                print(f"  Warning: No events loaded for '{event_name}', skipping")
+                continue
+            metrics = analyze_events(events, event_name)
+            create_event_chart(metrics, output_base)
+
+        print(f"\n✓ Charts saved to: {output_path}")
+        return
+
+    # ------------------------------------------------------------------ #
+    # Mode B: -i source.json  (sample and/or chart from source file)      #
+    # ------------------------------------------------------------------ #
+
     # Get input file path
     if args.input:
         input_path = Path(args.input)
@@ -380,21 +535,21 @@ def main():
         input_path = select_file_dialog(script_dir)
         if not input_path:
             tools.errorAndExit("No file selected")
-    
+
     if not input_path.exists():
         tools.errorAndExit(f"File not found: {input_path}")
-    
+
     print(f"Processing: {input_path.name}")
-    
+
     # Load and parse data
     data = load_swjson(input_path)
     if not data:
         tools.errorAndExit(f"Failed to load {input_path}")
-    
+
     events_by_category = parse_trace_events(data)
     if not events_by_category:
         tools.errorAndExit("No events found in file")
-    
+
     # Handle --list-events flag
     if args.list_events:
         print(f"\nAvailable event categories ({len(events_by_category)}):")
@@ -402,47 +557,46 @@ def main():
             event_count = len(events_by_category[category])
             print(f"  {i:2d}. {category} ({event_count} events)")
         return
-    
+
     # Set output path
     if args.output:
         output_path = Path(args.output)
     else:
         output_path = input_path.parent / f"{input_path.stem}_analysis"
-    
-    # Determine which events to analyze
+
+    # Determine which events to process
     if args.events:
-        # User specified event names
         target_events = []
         for event_name in args.events:
             if event_name in events_by_category:
                 target_events.append(event_name)
             else:
                 print(f"Warning: Event '{event_name}' not found in file")
-        
         if not target_events:
             print("\nAvailable events:")
             for category in sorted(events_by_category.keys()):
                 print(f"  - {category}")
             tools.errorAndExit("None of the specified events were found")
     else:
-        # Analyze all events
         target_events = list(events_by_category.keys())
-    
-    print(f"\nCollecting samples for {len(target_events)} event type(s)...")
 
-    if args.sample_size <= 0:
-        tools.errorAndExit("--sample-size must be > 0")
+    # Generate charts if requested
+    if args.chart:
+        generate_charts_from_events(events_by_category, target_events, output_path)
 
-    # Save raw event samples for quick structure inspection
-    save_event_samples(
-        events_by_category,
-        target_events,
-        output_path,
-        sample_size=args.sample_size,
-        force=args.force,
-    )
-    
-    print(f"\n✓ Sample collection complete! Results saved to: {output_path.parent}")
+    # Save raw samples (unless we're only charting and sample_size == 0)
+    if args.sample_size > 0:
+        print(f"\nCollecting samples for {len(target_events)} event type(s)...")
+        save_event_samples(
+            events_by_category,
+            target_events,
+            output_path,
+            sample_size=args.sample_size,
+            force=args.force,
+        )
+        print(f"\n✓ Sample collection complete! Results saved to: {output_path.parent}")
+    elif not args.chart:
+        tools.errorAndExit("--sample-size must be > 0 (or use --chart to only generate charts)")
 
 
 if __name__ == "__main__":

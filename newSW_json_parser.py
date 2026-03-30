@@ -1,5 +1,5 @@
 """
-SWJSON Parser - Analyze and visualize data from .swjson trace files
+SW JSON Parser - Analyze and visualize data from .json trace files
 """
 
 import json
@@ -80,12 +80,12 @@ class EventMetrics:
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        prog='SWJSON Parser',
-        description='Parse and analyze .swjson or .json trace files for event metrics and visualization'
+        prog='SW JSON Parser',
+        description='Parse and analyze .json trace files for event metrics and visualization'
     )
     parser.add_argument(
         '-i', '--input',
-        help='Input .swjson or .json file path'
+        help='Input .json file path'
     )
     parser.add_argument(
         '-o', '--output',
@@ -152,9 +152,9 @@ def select_file_dialog(script_dir: Path) -> Optional[Path]:
     
     # Show file dialog
     file_path = filedialog.askopenfilename(
-        title="Select a .swjson or .json file",
+        title="Select a .json file",
         initialdir=initial_dir,
-        filetypes=[("JSON files", "*.swjson *.json"), ("SWJSON files", "*.swjson"), ("JSON files", "*.json"), ("All files", "*.*")]
+        filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
     )
     
     if file_path:
@@ -166,9 +166,9 @@ def select_file_dialog(script_dir: Path) -> Optional[Path]:
 
 
 def load_swjson(file_path: Path) -> Optional[dict]:
-    """Load and parse a .swjson or .json file."""
-    if file_path.suffix not in ['.swjson', '.json']:
-        print(f"Error: Invalid file extension. Expected .swjson or .json, got {file_path.suffix}")
+    """Load and parse a .json file."""
+    if file_path.suffix != '.json':
+        print(f"Error: Invalid file extension. Expected .json, got {file_path.suffix}")
         return None
     
     try:
@@ -215,36 +215,62 @@ def parse_trace_events(data: dict) -> Dict[str, List[dict]]:
     return events_by_category
 
 
+def _is_per_core_freq_event(event_name: str) -> bool:
+    """Return True for per-core/thread P-State/Frequency (OS) events whose args
+    are keyed by frequency in MHz (e.g. {'1600': 29882.0}) rather than by metric name."""
+    lowered = event_name.lower()
+    return (
+        ("core" in lowered or "thread" in lowered)
+        and "p-state" in lowered
+        and "(os)" in lowered
+    )
+
+
 def analyze_events(events: List[dict], event_name: str) -> EventMetrics:
     """Analyze events and calculate metrics for any event type."""
     metrics = EventMetrics(event_name=event_name)
-    
+    is_core_freq = _is_per_core_freq_event(event_name)
+
     for event in events:
         timestamp = event.get("ts", 0)
-        
+
         # Update time range
         metrics.start_time = min(metrics.start_time, timestamp)
         metrics.end_time = max(metrics.end_time, timestamp)
-        
+
         # Process event arguments
         if "args" in event and event["args"]:
             metrics.total_events += 1
-            
-            for metric_name, value in event["args"].items():
-                # Accumulate values per metric
-                if metric_name not in metrics.accumulated:
-                    metrics.accumulated[metric_name] = 0
-                metrics.accumulated[metric_name] += value
-                
-                # Track peak value
-                metrics.peak_value = max(metrics.peak_value, value)
-                
-                # Store data for charting
-                metrics.chart_data.append((timestamp, value, metric_name))
-    
+
+            if is_core_freq:
+                # args keys are frequency (MHz) strings; values are duration.
+                # Store (timestamp, freq_MHz, "Core {tid}") so the chart can
+                # draw one line per core with frequency on the Y axis.
+                tid = event.get("tid", "unknown")
+                core_label = f"Core {tid}"
+                for freq_str, duration in event["args"].items():
+                    freq_val = float(freq_str)
+                    metrics.peak_value = max(metrics.peak_value, freq_val)
+                    metrics.chart_data.append((timestamp, freq_val, core_label))
+                    if core_label not in metrics.accumulated:
+                        metrics.accumulated[core_label] = 0
+                    metrics.accumulated[core_label] += duration
+            else:
+                for metric_name, value in event["args"].items():
+                    # Accumulate values per metric
+                    if metric_name not in metrics.accumulated:
+                        metrics.accumulated[metric_name] = 0
+                    metrics.accumulated[metric_name] += value
+
+                    # Track peak value
+                    metrics.peak_value = max(metrics.peak_value, value)
+
+                    # Store data for charting
+                    metrics.chart_data.append((timestamp, value, metric_name))
+
     # Calculate derived metrics
     metrics.duration = metrics.end_time - metrics.start_time
-    
+
     return metrics
 
 
@@ -266,6 +292,8 @@ def create_event_chart(metrics: EventMetrics, output_path: Path):
     chart_type = _detect_chart_type(metrics.event_name)
     if chart_type == "bandwidth":
         _draw_bandwidth_chart(metrics, metric_data, output_path)
+    elif chart_type == "core_freq":
+        _draw_core_freq_chart(metrics, metric_data, output_path)
     elif chart_type == "state":
         _draw_state_chart(metrics, metric_data, output_path)
     elif chart_type == "sensor":
@@ -286,7 +314,7 @@ def _build_metric_data(metrics: EventMetrics) -> Dict[str, Dict[str, List[float]
         metric_data[key]["time"].append(timestamp / 1e6)  # microseconds -> seconds
 
         if "Bandwidth" in metrics.event_name and value >= 1e6:
-            metric_data[key]["values"].append(value / 1e6)  # MB/s
+            metric_data[key]["values"].append(value / 1e6)  # bytes -> MB (÷ interval for MB/s done in chart)
         elif value >= 1e9:
             metric_data[key]["values"].append(value / 1e9)
         elif value >= 1e6:
@@ -303,6 +331,10 @@ def _detect_chart_type(event_name: str) -> str:
 
     if "bandwidth" in lowered:
         return "bandwidth"
+
+    # Per-core/thread frequency events need their own chart (one line per core).
+    if _is_per_core_freq_event(event_name):
+        return "core_freq"
 
     if "p-state" in lowered or "c-state" in lowered or "residency" in lowered:
         return "state"
@@ -423,28 +455,129 @@ def _draw_state_chart(
     _save_chart(output_path, metrics)
 
 
+def _draw_core_freq_chart(
+    metrics: EventMetrics,
+    metric_data: Dict[str, Dict[str, List[float]]],
+    output_path: Path,
+):
+    """Per-core/thread frequency chart: one step-line per core, Y axis = Frequency (MHz)."""
+    # Sort each core's samples by timestamp so the step line is monotonic.
+    def _sort_series(data: Dict[str, List[float]]) -> Dict[str, List[float]]:
+        pairs = sorted(zip(data["time"], data["values"]), key=lambda p: p[0])
+        times, values = zip(*pairs) if pairs else ([], [])
+        return {"time": list(times), "values": list(values)}
+
+    sorted_data = {core: _sort_series(data) for core, data in metric_data.items()}
+
+    # Sort cores numerically by the tid suffix ("Core 37684" -> 37684).
+    def _core_sort_key(label: str) -> int:
+        try:
+            return int(label.split()[-1])
+        except (ValueError, IndexError):
+            return 0
+
+    cores = sorted(sorted_data.keys(), key=_core_sort_key)
+    n_cores = len(cores)
+
+    fig_height = max(8, min(n_cores * 0.6 + 4, 24))
+    plt.figure(figsize=(16, fig_height))
+
+    cmap = plt.get_cmap("tab20" if n_cores <= 20 else "hsv")
+    colors = [cmap(i / max(n_cores, 1)) for i in range(n_cores)]
+
+    for i, core in enumerate(cores):
+        data = sorted_data[core]
+        plt.step(
+            data["time"],
+            data["values"],
+            label=core,
+            linewidth=1.2,
+            alpha=0.8,
+            where="post",
+            color=colors[i],
+        )
+
+    plt.xlabel("Time (seconds)", fontsize=12)
+    plt.ylabel("Frequency (MHz)", fontsize=12)
+    title = metrics.event_name.replace("(", "").replace(")", "")
+    plt.title(f"{title} — Per-Core Frequency Over Time", fontsize=14, fontweight="bold")
+    ncol = max(1, (n_cores + 9) // 10)  # ~10 entries per legend column
+    plt.legend(loc="best", fontsize=8, ncol=ncol)
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    _save_chart(output_path, metrics)
+
+
 def _draw_bandwidth_chart(
     metrics: EventMetrics,
     metric_data: Dict[str, Dict[str, List[float]]],
     output_path: Path,
 ):
     """Bandwidth events usually have multiple channels: draw top channels as lines."""
+    from collections import defaultdict
+
+    # Build per-timestamp interval lookup (seconds).
+    # All channels share the same timestamps so we derive intervals from any one channel.
+    any_times = next(iter(metric_data.values()))["time"] if metric_data else []
+    sorted_unique_ts = sorted(set(any_times))
+    interval_for_ts: dict = {}
+    for idx, t in enumerate(sorted_unique_ts):
+        if idx < len(sorted_unique_ts) - 1:
+            interval_for_ts[t] = sorted_unique_ts[idx + 1] - t
+        else:
+            # Last sample: reuse previous interval
+            interval_for_ts[t] = interval_for_ts.get(sorted_unique_ts[idx - 1], 1.0) if idx > 0 else 1.0
+
+    def to_mb_per_sec(times: List[float], values: List[float]) -> List[float]:
+        """Divide each MB-value by its sampling interval to get MB/s."""
+        return [
+            v / interval_for_ts.get(t, 1.0)
+            for t, v in zip(times, values)
+        ]
+
+    # Convert all channel values to MB/s
+    metric_data_mbs: Dict[str, Dict[str, List[float]]] = {
+        ch: {"time": data["time"], "values": to_mb_per_sec(data["time"], data["values"])}
+        for ch, data in metric_data.items()
+    }
+
     ranked = sorted(
-        metric_data.items(),
+        metric_data_mbs.items(),
         key=lambda item: max(item[1]['values']) if item[1]['values'] else 0,
         reverse=True,
     )
     top_metrics = ranked[:10]
 
+    # Build Total Memory BW series: sum all channels at each timestamp
+    total_by_ts: dict = defaultdict(float)
+    for _, data in metric_data_mbs.items():
+        for t, v in zip(data['time'], data['values']):
+            total_by_ts[t] += v
+    total_bw_times = sorted(total_by_ts.keys())
+    total_bw_values = [total_by_ts[t] for t in total_bw_times]
+
     plt.figure(figsize=(14, 8))
+
+    # Individual channels as scatter dots (background)
     for metric_name, data in top_metrics:
         label = metric_name if metric_name else metrics.event_name
-        plt.plot(data['time'], data['values'], label=label, linewidth=1.1, alpha=0.8)
+        plt.scatter(data['time'], data['values'], label=label, s=6, alpha=0.4)
+
+    # Total Memory BW as a bold line on top
+    plt.plot(
+        total_bw_times,
+        total_bw_values,
+        label="Total Memory BW",
+        color="black",
+        linewidth=2.0,
+        alpha=0.9,
+        zorder=10,
+    )
 
     plt.xlabel('Time (seconds)', fontsize=12)
-    plt.ylabel(_get_y_label(metrics), fontsize=12)
+    plt.ylabel('Bandwidth (MB/s)', fontsize=12)
     title = metrics.event_name.replace("(", "").replace(")", "")
-    plt.title(f'{title} Over Time (Top Bandwidth Channels)', fontsize=14, fontweight='bold')
+    plt.title(f'{title} Over Time', fontsize=14, fontweight='bold')
     plt.legend(loc='best', fontsize=8, ncol=2)
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
