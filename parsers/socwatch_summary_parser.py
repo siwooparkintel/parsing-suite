@@ -332,7 +332,8 @@ def parseSocwatch(tdic, socwatch_targets) :
             print("[re-looped table] : ", recheck_list, " you may want to match the order for ultimate performance") 
         if len(nonexist_list) > 0 :
             print("[nonexist searched table] : ", nonexist_list, " check socwatch summary source if the table is exist or check the look up text") 
-        return socwatch_obj
+    # tools.updateHeaderCollection("socwatch_obj", socwatch_obj)
+    return socwatch_obj
 
         
 

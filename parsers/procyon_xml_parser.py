@@ -61,7 +61,7 @@ def parseProcyonResultXML(abs_path) :
     #     temp['mlc_output_status'] = "failed"
     # else :
     #     temp['mlc_output_status'] = "successful"
-
+    # tools.updateHeaderCollection("procyon_obj", temp)
     return temp
 
 

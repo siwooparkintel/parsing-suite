@@ -5,6 +5,9 @@ import json
 import numpy as np
 
 
+header_collection = dict()
+
+
 def tk_dialogs(
     dialog_type="open_file",
     title="Select a file",
@@ -49,6 +52,14 @@ def parseNumeric(text) :
 def parseDevice(text) :
     return ''.join(re.findall(r'[A-Z.0-9]', text))
 
+def getPickedType(picks) :
+    return picks['power_pick']+"_picked"
+
+def getMSmodelKeyUnit(key, value_list) :
+    return key+f" ({value_list[1]})" if value_list[1] != "" else key
+
+def getSocwatchHeader(key, label) :
+    return f"{key}        {label}"
 
 def tryRoundifNumber(value) :
     try :
@@ -117,16 +128,18 @@ def getSocPowerRailName(DAQ_target, picks):
             break
     picks['SOC_POWER_RAIL_NAME'] = soc_power_rail_name
 
-def flatten_model_dic(entry) :
+
+def flatten_MS_model_dic(entry) :
     
     if "model_output_obj" in entry and "model_output_data" in entry["model_output_obj"] :
         copied = entry["model_output_obj"]['model_output_data'].copy()
         new_output = dict()
         for index, key in enumerate(copied):
             value_list = copied[key]
-            updated_key = key+f" ({value_list[1]})" if value_list[1] != "" else key
+            updated_key = getMSmodelKeyUnit(key, value_list)
             new_output[updated_key] = value_list[0]
         new_output['model_output_path'] = entry["model_output_obj"]["model_output_path"]
+        MS_model_header_updater(entry["model_output_obj"])
         return new_output
     else :
         return {}
@@ -168,16 +181,6 @@ def flatten_LPmode_sr_dic(entry):
         return copied
     else :
         return {}
-        
-def flatten_power_dic(entry, picks):
-    if "power_obj" in entry and "power_data" in entry["power_obj"] :
-        copied = entry["power_obj"]['power_data'].copy()
-        copied["power_type"] = entry['power_obj']['power_type']
-        copied[picks['power_pick']+"_picked"] = entry['power_obj']['picked']
-        copied["power_path"] = entry['power_obj']['file_path']
-        return copied
-    else :
-        return {}
     
 def flatten_teams_vpt_camera_dic(entry):
     if "vpt_output_obj" in entry and "vpt_output_data" in entry["vpt_output_obj"] :
@@ -196,6 +199,7 @@ def flatten_procyon_xml_dic(entry):
         new_output = dict()
         new_output['procyon_overall_score'] = copied["procyon_overall_score"]
         new_output['procyon_xml_path'] = entry["procyon_result_obj"]["procyon_xml_path"]
+        procyon_header_updater(entry["procyon_result_obj"])
         return new_output
     else :
         return {}
@@ -213,7 +217,26 @@ def flatten_trace_dic(entry):
         return copied
     else :
         return {}
-        
+    
+def flatten_pcie_socwatch_dic(entry, pcie_socwatch_targets):
+    if "pcie_socwatch_obj" in entry and "pcie_socwatch_tables" in entry["pcie_socwatch_obj"] :
+        flat_socwatch = {}
+        for table in entry["pcie_socwatch_obj"]["pcie_socwatch_tables"]:
+            # flat_socwatch.update(table["table_data"]) if "table_data" in table else {}
+
+            data = table["table_data"]
+            if "bucketized_data" in table:
+                data = table["bucketized_data"]
+            for item in data :
+                # print(item, item+"_"+table["label"])
+                flat_socwatch[getSocwatchHeader(item, table["label"])] = tryRoundifNumber(data[item])
+            # flat_socwatch[table]
+        flat_socwatch['pcie_socwatch_path'] = entry['pcie_socwatch_obj']['pcie_socwatch_path']
+        pcie_socwatch_header_updater(entry["pcie_socwatch_obj"])
+        return flat_socwatch
+    else :
+        return {}
+         
 def flatten_socwatch_dic_per_core(entry, socwatch_targets):
     if "socwatch_obj" in entry and "socwatch_tables" in entry["socwatch_obj"] :
         flatten_list = []
@@ -227,7 +250,7 @@ def flatten_socwatch_dic_per_core(entry, socwatch_targets):
                 data = table["bucketized_data"]
             for item in data :
                 # print(item, item+"_"+table["label"])
-                new_key = item+"        "+table["label"]
+                new_key = getSocwatchHeader(item, table["label"])
                 if table["label"] == "CPU_Pstate":
                     flat_socwatch[new_key] = tryRoundifNumber(data[item][0])
                     get_rest_cpu_pstate(rest_cpu_pstate_list, new_key, data[item][1:]) if isinstance(data[item], list) else None
@@ -237,6 +260,7 @@ def flatten_socwatch_dic_per_core(entry, socwatch_targets):
         flat_socwatch['socwatch_path'] = entry['socwatch_obj']['socwatch_path']
         flatten_list.append(flat_socwatch)
         flatten_list.extend(rest_cpu_pstate_list)
+        
         return flatten_list
     else :
         return []
@@ -252,30 +276,25 @@ def flatten_socwatch_dic(entry, socwatch_targets):
                 data = table["bucketized_data"]
             for item in data :
                 # print(item, item+"_"+table["label"])
-                flat_socwatch[item+"        "+table["label"]] = data[item]
+                flat_socwatch[getSocwatchHeader(item, table["label"])] = data[item]
             # flat_socwatch[table]
         flat_socwatch['socwatch_path'] = entry['socwatch_obj']['socwatch_path']
+        socwatch_header_updater(entry["socwatch_obj"])
         return flat_socwatch
     else :
         return {}
     
-def flatten_pcie_socwatch_dic(entry, pcie_socwatch_targets):
-    if "pcie_socwatch_obj" in entry and "pcie_socwatch_tables" in entry["pcie_socwatch_obj"] :
-        flat_socwatch = {}
-        for table in entry["pcie_socwatch_obj"]["pcie_socwatch_tables"]:
-            # flat_socwatch.update(table["table_data"]) if "table_data" in table else {}
-
-            data = table["table_data"]
-            if "bucketized_data" in table:
-                data = table["bucketized_data"]
-            for item in data :
-                # print(item, item+"_"+table["label"])
-                flat_socwatch[item+"        "+table["label"]] = tryRoundifNumber(data[item])
-            # flat_socwatch[table]
-        flat_socwatch['pcie_socwatch_path'] = entry['pcie_socwatch_obj']['pcie_socwatch_path']
-        return flat_socwatch
+def flatten_power_dic(entry, picks):
+    if "power_obj" in entry and "power_data" in entry["power_obj"] :
+        copied = entry["power_obj"]['power_data'].copy()
+        copied["power_type"] = entry['power_obj']['power_type']
+        copied[getPickedType(picks)] = entry['power_obj']['picked']
+        copied["power_path"] = entry['power_obj']['power_path']
+        power_header_updater(entry["power_obj"], picks)
+        return copied
     else :
         return {}
+    
 
 def get_median(values) :
     return np.median(values)
@@ -302,3 +321,149 @@ def parsePowerRailNames(DAQ_target, picks):
     picks["SA_POWER_RAIL_NAME"] = DAQ_target.get("SA_POWER_RAIL_NAME")
     picks["GT_POWER_RAIL_NAME"] = DAQ_target.get("GT_POWER_RAIL_NAME")
     print("============================= ", picks)
+
+def power_header_updater(parsed_obj, picks):
+    if "power" not in header_collection :
+        header_collection["power"] = dict()
+    for item in parsed_obj :
+
+        if item == "power_data":
+            if "power_data_key" not in header_collection["power"] :
+                header_collection["power"]["power_data_key"] = list(parsed_obj[item].keys())
+            else :
+                existing_keys = header_collection["power"]["power_data_key"]
+                new_keys = parsed_obj[item].keys()
+                combined = list(dict.fromkeys(list(new_keys) + list(existing_keys)))  # Combine and remove duplicates while preserving order
+                header_collection["power"]["power_data_key"] = combined
+    
+    if "power_type" not in header_collection["power"] and "power_type" in parsed_obj :
+        header_collection["power"]["power_type"] = ""
+    if "picked" not in header_collection["power"]  and "picked" in parsed_obj : 
+        header_collection["power"][getPickedType(picks)] = ""
+    if "power_path" not in header_collection["power"] and "power_path" in parsed_obj :
+        header_collection["power"]["power_path"] = ""
+
+def socwatch_header_updater(parsed_obj):
+    if "socwatch" not in header_collection :
+        header_collection["socwatch"] = dict()
+    for table in parsed_obj["socwatch_tables"] :
+        if "bucketized_data" in table :
+            new_keys = [getSocwatchHeader(key, table["label"]) for key in table["bucketized_data"].keys()]
+        else :
+            new_keys = [getSocwatchHeader(key, table["label"]) for key in table["table_data"].keys()]
+
+        if table["label"] not in header_collection["socwatch"] :
+            header_collection["socwatch"][table["label"]] = new_keys
+        else :
+            existing_keys = header_collection["socwatch"][table["label"]]
+            combined = list(dict.fromkeys(new_keys + existing_keys))  # Combine and remove duplicates while preserving order
+            header_collection["socwatch"][table["label"]] = combined
+    if "socwatch_path" in parsed_obj and "socwatch_path" not in header_collection["socwatch"] :
+        header_collection["socwatch"]["socwatch_path"] = ""
+
+def pcie_socwatch_header_updater(parsed_obj):
+    if "PCIe_socwatch" not in header_collection :
+        header_collection["PCIe_socwatch"] = dict()
+    for table in parsed_obj["pcie_socwatch_tables"] :
+
+        new_keys = [getSocwatchHeader(key, table["label"]) for key in table["table_data"].keys()]
+
+        if table["label"] not in header_collection["PCIe_socwatch"] :
+            header_collection["PCIe_socwatch"][table["label"]] = new_keys
+        else :
+            existing_keys = header_collection["PCIe_socwatch"][table["label"]]
+            combined = list(dict.fromkeys(new_keys + existing_keys))  # Combine and remove duplicates while preserving order
+            header_collection["PCIe_socwatch"][table["label"]] = combined
+    if "pcie_socwatch_path" in parsed_obj and "pcie_socwatch_path" not in header_collection["PCIe_socwatch"] :
+        header_collection["PCIe_socwatch"]["pcie_socwatch_path"] = ""
+
+def procyon_header_updater(parsed_obj):
+    if "procyon" not in header_collection :
+        header_collection["procyon"] = dict()
+    if "procyon_data" in parsed_obj and "procyon_overall_score" in parsed_obj["procyon_data"] and "procyon_overall_score" not in header_collection["procyon"] :
+        header_collection["procyon"]["procyon_overall_score"] = ""
+    if "procyon_xml_path" in parsed_obj and "procyon_xml_path" not in header_collection["procyon"] :
+        header_collection["procyon"]["procyon_xml_path"] = ""
+
+def MS_model_header_updater(parsed_obj):
+    if "MS_model" not in header_collection :
+        header_collection["MS_model"] = dict()
+    if "model_output_data" in parsed_obj :
+        if "model_data_key" not in header_collection["MS_model"] :
+            header_collection["MS_model"]["model_data_key"] = [getMSmodelKeyUnit(key, parsed_obj["model_output_data"][key]) for key in parsed_obj["model_output_data"].keys()]
+        else :
+            existing_keys = header_collection["MS_model"]["model_data_key"]
+            # new_keys = parsed_obj["model_output_data"].keys()
+            new_keys = [getMSmodelKeyUnit(key, parsed_obj["model_output_data"][key]) for key in parsed_obj["model_output_data"].keys()]
+            combined = list(dict.fromkeys(list(new_keys) + list(existing_keys)))  # Combine and remove duplicates while preserving order
+            header_collection["MS_model"]["model_data_key"] = combined
+    if "model_output_path" in parsed_obj and "model_output_path" not in header_collection["MS_model"] :
+        header_collection["MS_model"]["model_output_path"] = ""
+    
+def get_MS_model_list(MS_model_header_dict) :
+    model_header  = list()
+    for model_key in MS_model_header_dict["model_data_key"] :
+        if model_key == "model_data_key":
+            model_header.extend(MS_model_header_dict[model_key])
+        else :
+            model_header.append(model_key)
+    model_header.append("model_output_path") if "model_output_path" in MS_model_header_dict else None
+    return model_header
+
+def get_power_header_list(power_header_dict) :
+    power_header  = list()
+    for power_key in power_header_dict:
+        if power_key == "power_data_key" :
+            power_header.extend(power_header_dict[power_key])
+        else :
+            power_header.append(power_key)
+    
+    return power_header
+
+def get_socwatch_header_list(socwatch_header_dict) :
+    socwatch_header  = list()
+    for table_label in socwatch_header_dict:
+        if table_label != "socwatch_path" :
+            socwatch_header.extend(socwatch_header_dict[table_label])
+    socwatch_header.append("socwatch_path") if "socwatch_path" in socwatch_header_dict else None
+    return socwatch_header
+
+def get_pcie_socwatch_header_list(PCIe_socwatch_header_dict) :
+    PCIe_socwatch_header  = list()
+    for table_label in PCIe_socwatch_header_dict:
+        if table_label != "pcie_socwatch_path" :
+            PCIe_socwatch_header.extend(PCIe_socwatch_header_dict[table_label])
+    PCIe_socwatch_header.append("pcie_socwatch_path") if "pcie_socwatch_path" in PCIe_socwatch_header_dict else None
+    return PCIe_socwatch_header
+
+def get_procyon_score_header_list(procyon_header_dict) :
+    procyon_header  = list()
+    for procyon_item in procyon_header_dict:
+        procyon_header.append(procyon_item)
+    return procyon_header
+
+
+def getHeaderCollection():
+    # this dictates the column order in the final excel, so the order of appending matters
+    flatten_header = ["Data label", "Condition"]
+    flatten_header.extend(get_power_header_list(header_collection["power"])) if "power" in header_collection else None
+    flatten_header.extend(get_MS_model_list(header_collection["MS_model"])) if "MS_model" in header_collection else None
+    # flatten_header.extend(get_SC_FPS_list(header_collection["SC_FPS"])) if "SC_FPS" in header_collection else None
+    # flatten_header.extend(get_teams_vpt_camera_list(header_collection["vpt_camera"])) if "vpt_camera" in header_collection else None
+    flatten_header.extend(get_procyon_score_header_list(header_collection["procyon"])) if "procyon" in header_collection else None
+    flatten_header.extend(get_socwatch_header_list(header_collection["socwatch"])) if "socwatch" in header_collection else None
+    flatten_header.extend(get_pcie_socwatch_header_list(header_collection["PCIe_socwatch"])) if "PCIe_socwatch" in header_collection else None
+    return flatten_header
+
+
+"""
+    flattened.update(tools.flatten_power_dic(entry, picks))
+    flattened.update(tools.flatten_model_dic(entry))
+    flattened.update(tools.flatten_fps_dic(entry))
+    flattened.update(tools.flatten_LPmode_sr_dic(entry))
+    flattened.update(tools.flatten_procyon_xml_dic(entry))
+    flattened.update(tools.flatten_teams_vpt_camera_dic(entry))
+    flattened.update(tools.flatten_socwatch_dic(entry, socwatch_targets))
+    flattened.update(tools.flatten_pcie_socwatch_dic(entry, PCIe_targets))
+"""
+

@@ -34,27 +34,25 @@ def parsePowerSummaryCSV(csv_path, DAQ_target) :
         for row in csvreader:
             rows.append(row)
 
-        P_SOC = 0
+        P_SOC_power_W = 0
         for target_rail in DAQ_target:
             #print(type(rail), rail)
             
             for power_rail_index in range(len(rows)-1, -1, -1):
                 t_rail = rows[power_rail_index]
-                # print(power_rail_index, type(rows[power_rail_index]), rows[power_rail_index], target_rail)
+
                 if t_rail[0]== target_rail:
                     power_data[target_rail] = float(t_rail[avr_index])
-                    if target_rail.find("P_SOC") >= 0 or target_rail.find("P_MCP") >= 0 :
-                        P_SOC = power_data[target_rail]
+                    if target_rail == DAQ_target["SOC_POWER_RAIL_NAME"] :
+                        P_SOC_power_W = power_data[target_rail]
                     break
                     
-        # this need to be updated for ARL
-        if P_SOC > 0 and "Run Time" in power_data:
-            power_data['Energy (J)'] = P_SOC * power_data["Run Time"]
-        # power_data['Eng(J)/Frame'] = None
+    # this need to be updated for ARL
+    if P_SOC_power_W > 0 and "Run Time" in power_data:
+        power_data['Energy (J)'] = P_SOC_power_W * power_data["Run Time"]
 
-        power_obj['file_path'] = csv_path
-        # power_collection['data_type'] 
-        return power_obj
+    power_obj['power_path'] = csv_path
+    return power_obj
 
 
 def parseHopperRuntime(result_path, DAQ_target) :

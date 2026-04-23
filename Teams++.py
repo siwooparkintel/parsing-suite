@@ -34,6 +34,7 @@ CL_ETL = ".etl"
 CL_OUTPUT = '_output.txt'
 CL_SOCWATCH = 'Session.etl'
 CL_SOCWATCH_CSV = ["socwatch_regular", ".csv"]
+CL_PCIE_SOCWATCH_CSV = ["socwatch_minimal", ".csv"]
 CL_AI_MODEL = '_qdq_proxy_'
 CL_DAQ_SUMMARY = 'pacs-summary.csv'
 CL_DAQ_TRACES = 'pacs-traces'
@@ -275,11 +276,13 @@ def fileClassifier(abs_path, f):
             file_type = CL_SOCWATCH
         else :
             print("===== No Socwatch summary, Socwatch post-process may have interrupted or socwatch summary file name has altered", abs_path)
-        
     elif f.lower().find(CL_SOCWATCH_CSV[0]) >= 0 and f.lower().endswith(CL_SOCWATCH_CSV[1]):
         # file_size = os.path.getsize(abs_path)
         add_socwatch(abs_path)
-        file_type = CL_SOCWATCH_CSV
+        file_type = CL_SOCWATCH
+    elif f.lower().find(CL_PCIE_SOCWATCH_CSV[0]) >= 0 and f.lower().endswith(CL_PCIE_SOCWATCH_CSV[1]):
+        add_pcie_only(abs_path)
+        file_type = CL_SOCWATCH
     elif f.lower().find(CL_PROCYON_RESULT_XML[0]) >= 0 and f.lower().endswith(CL_PROCYON_RESULT_XML[1]):
         add_procyon_result_xml(abs_path)
         file_type = CL_PROCYON_RESULT_XML
@@ -287,7 +290,7 @@ def fileClassifier(abs_path, f):
     return file_type
 
 skip_folder_list = ["MSTeamsLogs", "Training"]
-
+    
 def detectAndParseFile(path) :
 
     for f in os.listdir(path):
@@ -306,10 +309,12 @@ def detectAndParseFile(path) :
 
 def main():
     tools.getSocPowerRailName(DAQ_target, picks)
+    print(tools.header_collection)
     detectAndParseFile(BASE)
     pck.checkAndMarkPower(hobl_sets, picks)
     print("====[hobl_sets]", hobl_sets)
     rpt.writeParsedAllInExcel(result_csv, hobl_sets, socwatch_targets, PCIe_targets, picks)
+    
 
 
 start_time = time.perf_counter()

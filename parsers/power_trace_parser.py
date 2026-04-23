@@ -199,7 +199,7 @@ def parsePowerTraceCSV(csv_path) :
     
     trace_data = None
     trace_obj = {"trace_data":trace_data}
-    trace_obj["file_path"] = csv_path
+    trace_obj["trace_path"] = csv_path
     
     return trace_obj
 

@@ -10,6 +10,7 @@ import parsers.pcie_socwatch_summary_parser as psoc
 import parsers.socwatch_summary_parser as soc
 import parsers.power_summary_parser as psp
 import parsers.power_trace_parser as ptp
+import parsers.procyon_xml_parser as pxp
 import parsers.power_checker as pck
 import parsers.reporter as rpt
 
@@ -28,10 +29,12 @@ args = parser.parse_args()
 print("args: ", args)
 
 CL_UNCLASSIFIED = "unclassified"
+CL_PROCYON_RESULT_XML = ["1h_bl_", ".xml"]
 CL_ETL = ".etl"
 CL_OUTPUT = '_output.txt'
 CL_SOCWATCH = 'Session.etl'
-CL_SOCWATCH_CSV = "socwatch.csv"
+CL_SOCWATCH_CSV = ["socwatch_regular", ".csv"]
+CL_PCIE_SOCWATCH_CSV = ["socwatch_minimal", ".csv"]
 CL_AI_MODEL = '_qdq_proxy_'
 CL_DAQ_SUMMARY = 'pacs-summary.csv'
 CL_DAQ_TRACES = 'pacs-traces'
@@ -246,6 +249,17 @@ def add_pcie_only(abs_path):
         global loaded_file_num
         loaded_file_num += 1
 
+def add_procyon_result_xml(abs_path):
+    path_set = tools.splitLastItem(abs_path, path_splitter, 1)
+    dataset = pullData(path_set[0])
+    if dataset == None:
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    # if PROCYON not in dataset["data_type"] :
+    #     dataset["data_type"].insert(0, PROCYON)
+    dataset["procyon_result_obj"] = pxp.parseProcyonResultXML(abs_path)
+    global loaded_file_num
+    loaded_file_num += 1
+
 
 def fileClassifier(abs_path, f):
 
@@ -286,11 +300,16 @@ def fileClassifier(abs_path, f):
             file_type = CL_SOCWATCH
         else :
             print("===== No Socwatch summary, Socwatch post-process may have interrupted or socwatch summary file name has altered", abs_path)
-        
-    elif f.lower().find(CL_SOCWATCH_CSV) >= 0:
+    elif f.lower().find(CL_SOCWATCH_CSV[0]) >= 0 and f.lower().endswith(CL_SOCWATCH_CSV[1]):
         # file_size = os.path.getsize(abs_path)
         add_socwatch(abs_path)
-        file_type = CL_SOCWATCH_CSV
+        file_type = CL_SOCWATCH
+    elif f.lower().find(CL_PCIE_SOCWATCH_CSV[0]) >= 0 and f.lower().endswith(CL_PCIE_SOCWATCH_CSV[1]):
+        add_pcie_only(abs_path)
+        file_type = CL_SOCWATCH
+    elif f.lower().find(CL_PROCYON_RESULT_XML[0]) >= 0 and f.lower().endswith(CL_PROCYON_RESULT_XML[1]):
+        add_procyon_result_xml(abs_path)
+        file_type = CL_PROCYON_RESULT_XML
     return file_type
 
 skip_folder_list = ["MSTeamsLogs", "Training", "Report"]
