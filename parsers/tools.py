@@ -115,19 +115,6 @@ def get_rest_cpu_pstate(rest_dic_list, key, rest_cpu_p_residency_list):
             if key is not tdic:
                 tdic[key] = tryRoundifNumber(rest_cpu_p_residency_list[idx]) # round(float(rest_cpu_p_residency_list[idx]), 2)
 
-def getSocPowerRailName(DAQ_target, picks):
-    soc_power_rail_name = ""
-    soc_list = ["P_SOC", "P_MCP", "P_SOC+MEMORY"]
-    # for loop from the backward order of DAQ_target keys
-    # check the possible soc power rail names if it contains "P_SOC", "P_MCP" or "P_SOC+MEMORY"
-    # make this a list for future expansion
-    # then assign the first found name to soc_power_rail_name   
-    for key in reversed(list(DAQ_target.keys())):
-        if key in soc_list:
-            soc_power_rail_name = key
-            break
-    picks['SOC_POWER_RAIL_NAME'] = soc_power_rail_name
-
 
 def flatten_MS_model_dic(entry) :
     
@@ -322,6 +309,7 @@ def parsePowerRailNames(DAQ_target, picks):
     picks["GT_POWER_RAIL_NAME"] = DAQ_target.get("GT_POWER_RAIL_NAME")
     print("============================= ", picks)
 
+
 def power_header_updater(parsed_obj, picks):
     if "power" not in header_collection :
         header_collection["power"] = dict()
@@ -442,6 +430,12 @@ def get_procyon_score_header_list(procyon_header_dict) :
         procyon_header.append(procyon_item)
     return procyon_header
 
+def get_teams_vpt_camera_list() :
+    vpt_camera_header  = list()
+    vpt_camera_header.append("min_cam_fps")
+    vpt_camera_header.append("median_cam_fps")
+    vpt_camera_header.append("vpt_output_path")
+    return vpt_camera_header
 
 def getHeaderCollection():
     # this dictates the column order in the final excel, so the order of appending matters
@@ -449,7 +443,7 @@ def getHeaderCollection():
     flatten_header.extend(get_power_header_list(header_collection["power"])) if "power" in header_collection else None
     flatten_header.extend(get_MS_model_list(header_collection["MS_model"])) if "MS_model" in header_collection else None
     # flatten_header.extend(get_SC_FPS_list(header_collection["SC_FPS"])) if "SC_FPS" in header_collection else None
-    # flatten_header.extend(get_teams_vpt_camera_list(header_collection["vpt_camera"])) if "vpt_camera" in header_collection else None
+    flatten_header.extend(get_teams_vpt_camera_list())
     flatten_header.extend(get_procyon_score_header_list(header_collection["procyon"])) if "procyon" in header_collection else None
     flatten_header.extend(get_socwatch_header_list(header_collection["socwatch"])) if "socwatch" in header_collection else None
     flatten_header.extend(get_pcie_socwatch_header_list(header_collection["PCIe_socwatch"])) if "PCIe_socwatch" in header_collection else None

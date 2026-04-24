@@ -36,8 +36,7 @@ CL_ETL = ".etl"
 CL_OUTPUT = '_output.txt'
 CL_SOCWATCH = 'Session.etl'
 CL_AI_MODEL = '_qdq_proxy_'
-CL_DAQ_SUMMARY = 'pacs-summary.csv'      
-CL_FLEX_SUMMARY = 'Raw_Summary.csv'
+CL_POWER_SUMMARIES = ['pacs-summary.csv', 'Raw_Summary.csv']
 CL_FLEX_RESULTS = '-results.json'
 CL_DAQ_TRACES = 'pacs-traces'
 CL_PASS = "-hopper.json"
@@ -215,10 +214,11 @@ def add_power_runtime(abs_path):
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
     if POWER not in dataset["data_type"] :
         dataset["data_type"].append(POWER)
-    dataset["power_obj"]["power_data"]["Run Time"] = psp.parseHopperRuntime(abs_path, None)
-    calFromPowerModel(dataset)
-    global loaded_file_num
-    loaded_file_num += 1
+    if "power_obj" in dataset and "power_data" in dataset["power_obj"] :
+        dataset["power_obj"]["power_data"]["Run Time"] = psp.parseHopperRuntime(abs_path, None)
+        calFromPowerModel(dataset)
+        global loaded_file_num
+        loaded_file_num += 1
 
 def add_trace(abs_path):
     path_set = tools.splitLastItem(abs_path, "\\", 1)
@@ -255,12 +255,9 @@ def fileClassifier(abs_path, f):
         # print("ETL detected ", abs_path, f)
         add_etl(abs_path)
         file_type = CL_ETL
-    elif f.find(CL_DAQ_SUMMARY) >= 0:
+    elif any(f.find(key) >= 0 for key in CL_POWER_SUMMARIES):
         add_power(abs_path)
-        file_type = CL_DAQ_SUMMARY
-    elif f.find(CL_FLEX_SUMMARY) >= 0:
-        add_power(abs_path)
-        file_type = CL_FLEX_SUMMARY
+        file_type = CL_POWER_SUMMARIES
     elif f.find(CL_FLEX_RESULTS) >= 0:
         add_power_runtime(abs_path)
         file_type = CL_FLEX_RESULTS

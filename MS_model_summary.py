@@ -46,9 +46,8 @@ AI_parsing_items = [
 
 CL_UNCLASSIFIED = "unclassified"
 CL_ETL = ".etl"
-CL_OUTPUT = '_output.txt'
 CL_SOCWATCH = 'Session.etl'
-CL_AI_MODEL = '_qdq_proxy_'
+CL_AI_MODELs = ['_qdq_proxy_', '_output.txt']
 CL_DAQ_SUMMARY = 'pacs-summary.csv'
 CL_DAQ_TRACES = 'pacs-traces'
 CL_PASS = ".PASS"
@@ -248,9 +247,9 @@ def fileClassifier(abs_path, f):
         # print("ETL detected ", abs_path, f)
         add_etl(abs_path)
         file_type = CL_ETL
-    elif f.find(CL_OUTPUT) >= 0 :
+    elif any(f.find(item) >= 0 for item in CL_AI_MODELs):
         add_model_output(abs_path)
-        file_type = CL_OUTPUT
+        file_type = CL_AI_MODELs
     elif f.find(CL_DAQ_SUMMARY) >= 0:
         add_power(abs_path)
         file_type = CL_DAQ_SUMMARY
@@ -278,9 +277,7 @@ def detectAndParseFile(path) :
         #     break
         if os.path.isfile(abs_path):
             fType = fileClassifier(abs_path, f)
-            if fType == CL_SOCWATCH :
-                # after detecting first Socwatch ETL, and it's summary, no need to go further
-                break
+
         else:
             #recursive on a folder detection
             detectAndParseFile(abs_path)

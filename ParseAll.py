@@ -1,4 +1,3 @@
-
 import os
 import time
 import json
@@ -6,6 +5,9 @@ from pathlib import Path
 from os import listdir
 from os.path import isfile, join
 import parsers.tools as tools
+import parsers.vpt_output_parser as vop
+import parsers.model_output_parser as mop
+import parsers.bm_llama_output_parser as lop
 import parsers.pcie_socwatch_summary_parser as psoc
 import parsers.socwatch_summary_parser as soc
 import parsers.power_summary_parser as psp
@@ -31,15 +33,17 @@ print("args: ", args)
 CL_UNCLASSIFIED = "unclassified"
 CL_PROCYON_RESULT_XML = ["1h_bl_", ".xml"]
 CL_ETL = ".etl"
-CL_OUTPUT = '_output.txt'
+CL_AI_MODELS = ['_qdq_proxy_', '_output.txt', 'PU_llama']
 CL_SOCWATCH = 'Session.etl'
 CL_SOCWATCH_CSV = ["socwatch_regular", ".csv"]
 CL_PCIE_SOCWATCH_CSV = ["socwatch_minimal", ".csv"]
-CL_AI_MODEL = '_qdq_proxy_'
-CL_DAQ_SUMMARY = 'pacs-summary.csv'
+CL_FLEX_RESULTS = '-results.json'
+CL_MS_AI_MODEL = '_qdq_proxy_'
+CL_POWER_SUMMARIES = ['pacs-summary.csv', 'Raw_Summary.csv']
 CL_DAQ_TRACES = 'pacs-traces'
 CL_PASS = ".PASS"
 CL_FAIL = ".FAIL"
+CL_VPT = "vpt_output.log"
 
 ETL = "ETL"
 POWER = "POWER"
@@ -86,7 +90,10 @@ socwatch_targets = config_json["socwatch_targets"]
 PCIe_targets = config_json["PCIe_targets"]
 DAQ_target = config_json["DAQ_target"]
 second_folder_list = config_json["Second_folder_list"]
+AI_parsing_items = config_json["AI_parsing_items"] if "AI_parsing_items" in config_json else None
+BM_parsing_items = config_json["BM_parsing_items"] if "BM_parsing_items" in config_json else None
 loaded_file_num = 0
+
 
 
 
@@ -187,6 +194,16 @@ def calFromPowerModel(block) :
             # tools.errorAndExit("===error in claFromPowerModel===" + str(block))
             block['power_obj']['power_data']['Eng(J)/Frame'] = "n/a"
 
+def add_vpt_out(abs_path):
+    path_set = tools.splitLastItem(abs_path, "\\", 1)
+    dataset = pullData(path_set[0])
+    if dataset == None:
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    dataset["vpt_output_obj"] = vop.parseVptResults(abs_path)
+    # calFromPowerModel(dataset)
+    global loaded_file_num
+    loaded_file_num += 1
+
 def add_etl(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
     dataset = pullData(path_set[0])
@@ -196,15 +213,29 @@ def add_etl(abs_path):
         dataset["data_type"].insert(0, ETL)
     dataset["etl_path"] = abs_path
 
-# def add_model_output(abs_path):
-#     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
-#     dataset = pullData(path_set[0])
-#     if dataset == None:
-#         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-#     dataset["model_output_obj"] = mop.parseModelResults(abs_path, AI_parsing_items)
-#     calFromPowerModel(dataset)
-#     global loaded_file_num
-#     loaded_file_num += 1
+def add_llama_model_output(abs_path):
+    path_set = tools.splitLastItem(abs_path, "\\", 1)
+    dataset = pullData(path_set[0])
+    if dataset == None : 
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    if BM_parsing_items is None:
+        tools.errorAndExit("BM_parsing_items is not defined in config, cannot parse BM model output: " + abs_path)
+    dataset["model_output_obj"] = lop.parseModelResults(abs_path, BM_parsing_items)
+    # calFromPowerModel(dataset)
+    global loaded_file_num
+    loaded_file_num += 1
+
+def add_MS_AI_model_output(abs_path):
+    path_set = tools.splitLastItem(abs_path, "\\", 1)
+    dataset = pullData(path_set[0])
+    if dataset == None :
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    if  AI_parsing_items is None:
+        tools.errorAndExit("AI_parsing_items is not defined in config, cannot parse AI model output: " + abs_path)
+    dataset["model_output_obj"] = mop.parseModelResults(abs_path, AI_parsing_items)
+    calFromPowerModel(dataset)
+    global loaded_file_num
+    loaded_file_num += 1
 
 def add_power(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -217,6 +248,19 @@ def add_power(abs_path):
     # calFromPowerModel(dataset)
     global loaded_file_num
     loaded_file_num += 1
+
+def add_power_runtime(abs_path):
+    path_set = tools.splitLastItem(abs_path, "\\", 1)
+    dataset = pullData(path_set[0])
+    if dataset == None:
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    if POWER not in dataset["data_type"] :
+        dataset["data_type"].append(POWER)
+    if "power_obj" in dataset and "power_data" in dataset["power_obj"] :
+        dataset["power_obj"]["power_data"]["Run Time"] = psp.parseHopperRuntime(abs_path, None)
+        calFromPowerModel(dataset)
+        global loaded_file_num
+        loaded_file_num += 1
 
 def add_trace(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -267,16 +311,28 @@ def fileClassifier(abs_path, f):
     
     if args.hobl == True and (f == CL_PASS or f == CL_FAIL):
         hobl_sets.append(createDataset(tools.splitLastItem(abs_path, path_splitter, 1)[0]))
+    elif f == CL_VPT:
+        add_vpt_out(abs_path)
+        file_type = CL_VPT
     elif f.find(CL_ETL) >= 0 and f.find(CL_SOCWATCH) == -1 : 
         # print("ETL detected ", abs_path, f)
         add_etl(abs_path)
         file_type = CL_ETL
-    elif f.find(CL_DAQ_SUMMARY) >= 0:
+    elif any(f.find(key) >= 0 for key in CL_POWER_SUMMARIES):
         add_power(abs_path)
-        file_type = CL_DAQ_SUMMARY
+        file_type = CL_POWER_SUMMARIES
     elif f.find(CL_DAQ_TRACES) >= 0 and f.find('sr.csv') >= 0:
         add_trace(abs_path)
         file_type = CL_DAQ_TRACES
+    elif f.find(CL_FLEX_RESULTS) >= 0:
+        add_power_runtime(abs_path)
+        file_type = CL_FLEX_RESULTS
+    elif any(f.find(item) >= 0 for item in CL_AI_MODELS):
+        if f.find("llama") >= 0:
+            add_llama_model_output(abs_path)
+        else :
+            add_MS_AI_model_output(abs_path)
+        file_type = CL_AI_MODELS
     elif f.find(CL_SOCWATCH) >= 0:
         workload_name = tools.splitLastItem(f, "_", 1)[0]
         upto_path = tools.splitLastItem(abs_path, path_splitter, 1)[0]
@@ -329,7 +385,6 @@ def detectAndParseFile(path) :
 
 
 def main():
-    tools.getSocPowerRailName(DAQ_target, picks)
     detectAndParseFile(BASE)
     pck.checkAndMarkPower(hobl_sets, picks)
     print("====[hobl_sets]", hobl_sets)

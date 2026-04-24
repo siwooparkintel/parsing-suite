@@ -68,5 +68,24 @@
         {"key": "PCIe_Active", "devices":["NVM"], "lookup": "PCIe Link Active Summary - Sampled: Approximated Residency (Percentage)"},
         {"key": "PCIe_LTRsnoop", "devices":["NVM"], "lookup": "PCIe LTR Snoop Summary - Sampled: Histogram"}
     ],
+    "AI_parsing_items" : [
+        {"key": "read_model", "lookup": "[ INFO ] Read model took", "unit":"ms"},
+        {"key": "compile_model", "lookup": "[ INFO ] Compile model took", "unit":"ms"},
+        {"key": "start_mem_usage", "lookup": "[ INFO ] Start of compilation memory usage: Peak", "unit":"KB"},
+        {"key": "end_mem_usage", "lookup": "[ INFO ] End of compilation memory usage: Peak", "unit":"KB"},
+        {"key": "ram_used", "lookup": "[ INFO ] Compile model ram used", "unit":"KB"},
+        {"key": "first_inference", "lookup": "[ INFO ] First inference took", "unit":"ms"},
+        {"key": "device", "lookup": "[ INFO ] Execution Devices:", "unit":""},
+        {"key": "iterations", "lookup": "[ INFO ] Count:", "unit":""},
+        {"key": "duration", "lookup": "[ INFO ] Duration:", "unit":"ms"},   
+        {"key": "latency_median", "lookup": "[ INFO ]    Median:", "unit":"ms"},
+        {"key": "latency_average", "lookup": "[ INFO ]    Average:", "unit":"ms"},
+        {"key": "throughput", "lookup": "[ INFO ] Throughput:", "unit":"FPS"}
+    ],
+    "BM_parsing_items" : [
+        {"key": "Pipeline init time", "lookup": "[ INFO ] Pipeline initialization time: ", "unit":"s"},
+        {"key": "Inference count", "lookup": "inference count: ", "unit":""},
+        {"key": "Average", "lookup": "[ INFO ] [Average] P[", "unit":"string"}
+    ],
     "Second_folder_list" : ["ETL", "POWER", "SOCWATCH", "PCIE"]
 }
