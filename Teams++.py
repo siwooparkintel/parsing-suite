@@ -308,7 +308,6 @@ def detectAndParseFile(path) :
 
 
 def main():
-    tools.getSocPowerRailName(DAQ_target, picks)
     print(tools.header_collection)
     detectAndParseFile(BASE)
     pck.checkAndMarkPower(hobl_sets, picks)
