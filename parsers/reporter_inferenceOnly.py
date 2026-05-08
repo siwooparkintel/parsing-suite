@@ -2,6 +2,7 @@ import csv
 import time
 import pandas as pd
 import parsers.tools as tools
+import parsers.flattener as flattener
 import parsers.power_trace_parser as ptp
 
 
@@ -87,7 +88,7 @@ def getTraceObject(hobl_data, picks):
 
 def flatten_trace_data(entry):
     flattened = {'Condition': entry['data_label'][0], 'data_label': entry['data_label'][1]}
-    flattened.update(tools.flatten_trace_dic(entry))
+    flattened.update(flattener.flatten_trace_dic(entry))
     return flattened
         
 

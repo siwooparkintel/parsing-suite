@@ -1,14 +1,15 @@
 import pandas as pd
 import parsers.tools as tools
+import parsers.flattener as flattener
 import parsers.socwatch_summary_parser as soc
 
 
 
 def flatten_picked_data(entry, socwatch_targets, picks, pulled_soc_entry):
     flattened = {'Condition': entry['data_label'][0], 'data_label': entry['data_label'][1]}
-    flattened.update(tools.flatten_power_dic(entry, picks))
-    flattened.update(tools.flatten_MS_model_dic(entry))
-    flattened.update(tools.flatten_socwatch_dic(pulled_soc_entry, socwatch_targets))
+    flattened.update(flattener.flatten_power_dic(entry, picks))
+    flattened.update(flattener.flatten_MS_model_dic(entry))
+    flattened.update(flattener.flatten_socwatch_dic(pulled_soc_entry, socwatch_targets))
     return flattened
 
 

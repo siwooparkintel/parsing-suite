@@ -73,7 +73,7 @@ def sortAndPick(objs, picks) :
     # print("+++++++++++++++++++++++++++", sorted_etls, sorted_powers, sorted_socwatches)
 
 
-def pullSameLabel(whole_sets, full_data_label) :
+def pullSameLabel(whole_sets, full_data_label, picks) :
 
     power_list = list()
 
@@ -82,7 +82,8 @@ def pullSameLabel(whole_sets, full_data_label) :
         if full_data_label == " ".join(block["data_label"]) and 'power_obj' in block and "power_data" in block['power_obj'] : # and not ("ETL" in block["data_type"] or "SOCWATCH" in block["data_type"])
             temp = block["data_type"].copy()
             # temp.sort()
-            block["power_obj"]["power_type"] = "_".join(temp)
+            filtered_temp = [item for item in temp if item in picks['second_folder_list']]
+            block["power_obj"]["power_type"] = "_".join(filtered_temp)
             power_list.append(block)
 
     return power_list
@@ -97,7 +98,7 @@ def checkAndMarkPower(whole_sets, picks) :
         full_data_label = " ".join(obj["data_label"])
         if full_data_label not in done_model:
             done_model.add(full_data_label)
-            objs = pullSameLabel(whole_sets, full_data_label)
+            objs = pullSameLabel(whole_sets, full_data_label, picks)
             # if picks['only_picks'] is True:
             sortAndPick(objs, picks)
             

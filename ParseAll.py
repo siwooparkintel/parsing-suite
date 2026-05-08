@@ -1,3 +1,30 @@
+"""
+====================================================================
+Feature working list : 
+1. HoBL automation (-hb usable)
+2. Hopper automation, (runtime parsing from hopper-results.json)
+3. Socwatch creating header first for better column order control
+4. Skip if no data type detected, instead of creating empty excel line
+
+Workload parsing capability tested:
+1. LPmode full run JSON
+2. Teams 3x3 with vpt FPS
+3. Andrii's CR 484, 404 Teams++ with Procyon XML
+4. MS AI model output parser (ex) xPU_Model_PSD1_v0_a_qdq_proxy_w8a16_output.txt
+5. Llama model with benchmark.exe(or.py) output parser (ex) xPU_llama-3.1-8b-instruct-npu-ov_2026-01-15_18-17-57.txt
+6. idle_hopper.py can be removed
+7. 
+
+
+
+
+Workload not parser added yet
+1. Geek bench (gb6_result.json or gb6_output.txt)
+2. Game final FPS score Screen Shot parser (Shadows of Tomb Raider)
+3. 
+====================================================================
+"""
+
 import os
 import time
 import json
@@ -10,9 +37,10 @@ import parsers.model_output_parser as mop
 import parsers.bm_llama_output_parser as lop
 import parsers.pcie_socwatch_summary_parser as psoc
 import parsers.socwatch_summary_parser as soc
+import parsers.lpmode_full_parser as lpf
 import parsers.power_summary_parser as psp
 import parsers.power_trace_parser as ptp
-import parsers.procyon_xml_parser as pxp
+import parsers.procyon_parser as pxp
 import parsers.power_checker as pck
 import parsers.reporter as rpt
 
@@ -30,10 +58,14 @@ parser.add_argument('-hb', '--hobl', action='store_true', help='if the data is c
 args = parser.parse_args()
 print("args: ", args)
 
+
 CL_UNCLASSIFIED = "unclassified"
 CL_PROCYON_RESULT_XML = ["1h_bl_", ".xml"]
+CL_PROCYON_RESULT_ARIELLE = ".procyon-result"
+CL_LPMODE_FULL = "LPmode_full_run.json"
 CL_ETL = ".etl"
 CL_AI_MODELS = ['_qdq_proxy_', '_output.txt', 'PU_llama']
+CL_POWERTRACE_REPORT = ['power_trace_report', '.csv']
 CL_SOCWATCH = 'Session.etl'
 CL_SOCWATCH_CSV = ["socwatch_regular", ".csv"]
 CL_PCIE_SOCWATCH_CSV = ["socwatch_minimal", ".csv"]
@@ -49,7 +81,13 @@ ETL = "ETL"
 POWER = "POWER"
 SOCWATCH = "SOCWATCH"
 PCIE = "PCIE"
+PROCYON = "PROCYON"
+LPMODE_FULL = "LPMODE_FULL"
+POWER_RAW_TRACE = "POWER_RAW_TRACE"
 MODEL_OUTPUT = "MODEL_OUTPUT"
+VPT_FPS = "VPT_FPS"
+LLAMA = "LLAMA"
+MS_AI_MODEL = "MS_AI_MODEL"
 MIN = "MIN"
 MAX = "MAX"
 MED = "MED"
@@ -90,11 +128,10 @@ socwatch_targets = config_json["socwatch_targets"]
 PCIe_targets = config_json["PCIe_targets"]
 DAQ_target = config_json["DAQ_target"]
 second_folder_list = config_json["Second_folder_list"]
+picks["second_folder_list"] = second_folder_list
 AI_parsing_items = config_json["AI_parsing_items"] if "AI_parsing_items" in config_json else None
 BM_parsing_items = config_json["BM_parsing_items"] if "BM_parsing_items" in config_json else None
 loaded_file_num = 0
-
-
 
 
 
@@ -139,12 +176,6 @@ if result_csv == None :
 
 
 
-#=========================================================================
-# this returns parent or parent*2 folder name string as a data_set name
-# if ETL, Power, Socwatch folder separation structure,
-# it returns grand parent folder name
-#=========================================================================
-
 def getDatasetLabel(abs_path) :
 
     folder_list = abs_path.split(path_splitter)
@@ -175,7 +206,7 @@ def pullData(abs_path) :
     retrieved = None
 
     for item in hobl_sets:
-        if (abs_path.find(item["ID_path"]) == 0) : 
+        if abs_path == item["ID_path"] or abs_path.startswith(item["ID_path"] + path_splitter):
             retrieved = item
             break
     if retrieved is None and args.hobl != True:
@@ -194,15 +225,21 @@ def calFromPowerModel(block) :
             # tools.errorAndExit("===error in claFromPowerModel===" + str(block))
             block['power_obj']['power_data']['Eng(J)/Frame'] = "n/a"
 
+
+def fileLoadingCounter(num) :
+    global loaded_file_num
+    loaded_file_num += num
+
 def add_vpt_out(abs_path):
     path_set = tools.splitLastItem(abs_path, "\\", 1)
     dataset = pullData(path_set[0])
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-    dataset["vpt_output_obj"] = vop.parseVptResults(abs_path)
-    # calFromPowerModel(dataset)
-    global loaded_file_num
-    loaded_file_num += 1
+    if VPT_FPS not in dataset["data_type"] :
+        dataset["data_type"].insert(0, VPT_FPS)
+        dataset["vpt_output_obj"] = vop.parseVptResults(abs_path)
+        # calFromPowerModel(dataset)
+        fileLoadingCounter(1)
 
 def add_etl(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -211,7 +248,7 @@ def add_etl(abs_path):
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
     if ETL not in dataset["data_type"] :
         dataset["data_type"].insert(0, ETL)
-    dataset["etl_path"] = abs_path
+        dataset["etl_path"] = abs_path
 
 def add_llama_model_output(abs_path):
     path_set = tools.splitLastItem(abs_path, "\\", 1)
@@ -220,10 +257,11 @@ def add_llama_model_output(abs_path):
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
     if BM_parsing_items is None:
         tools.errorAndExit("BM_parsing_items is not defined in config, cannot parse BM model output: " + abs_path)
-    dataset["model_output_obj"] = lop.parseModelResults(abs_path, BM_parsing_items)
-    # calFromPowerModel(dataset)
-    global loaded_file_num
-    loaded_file_num += 1
+    if LLAMA not in dataset["data_type"] :
+        dataset["data_type"].insert(0, LLAMA)
+        dataset["model_output_obj"] = lop.parseModelResults(abs_path, BM_parsing_items)
+        # calFromPowerModel(dataset)
+        fileLoadingCounter(1)
 
 def add_MS_AI_model_output(abs_path):
     path_set = tools.splitLastItem(abs_path, "\\", 1)
@@ -232,10 +270,11 @@ def add_MS_AI_model_output(abs_path):
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
     if  AI_parsing_items is None:
         tools.errorAndExit("AI_parsing_items is not defined in config, cannot parse AI model output: " + abs_path)
-    dataset["model_output_obj"] = mop.parseModelResults(abs_path, AI_parsing_items)
-    calFromPowerModel(dataset)
-    global loaded_file_num
-    loaded_file_num += 1
+    if MS_AI_MODEL not in dataset["data_type"] :
+        dataset["data_type"].insert(0, MS_AI_MODEL)
+        dataset["model_output_obj"] = mop.parseModelResults(abs_path, AI_parsing_items)
+        calFromPowerModel(dataset)
+        fileLoadingCounter(1)
 
 def add_power(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -244,32 +283,29 @@ def add_power(abs_path):
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
     if POWER not in dataset["data_type"] :
         dataset["data_type"].append(POWER)
-    dataset["power_obj"] = psp.parsePowerSummaryCSV(abs_path, DAQ_target)
-    # calFromPowerModel(dataset)
-    global loaded_file_num
-    loaded_file_num += 1
+        dataset["power_obj"] = psp.parsePowerSummaryCSV(abs_path, DAQ_target)
+        # calFromPowerModel(dataset)
+        fileLoadingCounter(1)
 
 def add_power_runtime(abs_path):
     path_set = tools.splitLastItem(abs_path, "\\", 1)
     dataset = pullData(path_set[0])
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-    if POWER not in dataset["data_type"] :
-        dataset["data_type"].append(POWER)
     if "power_obj" in dataset and "power_data" in dataset["power_obj"] :
         dataset["power_obj"]["power_data"]["Run Time"] = psp.parseHopperRuntime(abs_path, None)
         calFromPowerModel(dataset)
-        global loaded_file_num
-        loaded_file_num += 1
+        fileLoadingCounter(1)
 
 def add_trace(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
     dataset = pullData(path_set[0])
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-    dataset["trace_obj"] = ptp.parsePowerTraceCSV(abs_path)
-    global loaded_file_num
-    loaded_file_num += 1
+    if POWER_RAW_TRACE not in dataset["data_type"] :
+        dataset["data_type"].insert(0, POWER_RAW_TRACE)
+        dataset["trace_obj"] = ptp.parsePowerTraceCSV(abs_path)
+        fileLoadingCounter(1)
 
 def add_socwatch(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -279,8 +315,7 @@ def add_socwatch(abs_path):
     if SOCWATCH not in dataset["data_type"] :
         dataset["data_type"].insert(0, SOCWATCH)
         dataset["socwatch_obj"] = soc.parseSocwatch(abs_path, socwatch_targets)
-        global loaded_file_num
-        loaded_file_num += 1
+        fileLoadingCounter(1)
 
 def add_pcie_only(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -290,19 +325,37 @@ def add_pcie_only(abs_path):
     if PCIE not in dataset["data_type"] :
         dataset["data_type"].insert(0, PCIE)
         dataset["pcie_socwatch_obj"] = psoc.parsePCIe(abs_path, PCIe_targets)
-        global loaded_file_num
-        loaded_file_num += 1
+        fileLoadingCounter(1)
 
-def add_procyon_result_xml(abs_path):
+def add_procyon_xml_result(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
     dataset = pullData(path_set[0])
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-    # if PROCYON not in dataset["data_type"] :
-    #     dataset["data_type"].insert(0, PROCYON)
-    dataset["procyon_result_obj"] = pxp.parseProcyonResultXML(abs_path)
-    global loaded_file_num
-    loaded_file_num += 1
+    if PROCYON not in dataset["data_type"] :
+        dataset["data_type"].insert(0, PROCYON)
+    pxp.parseProcyonResultScore(dataset, abs_path)
+    fileLoadingCounter(1)
+
+def add_procyon_arielle_result(abs_path):
+    path_set = tools.splitLastItem(abs_path, path_splitter, 1)
+    dataset = pullData(path_set[0])
+    if dataset == None:
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    if PROCYON not in dataset["data_type"] :
+        dataset["data_type"].insert(0, PROCYON)
+    pxp.parseProcyonResultArielle(dataset, abs_path)
+    fileLoadingCounter(1)
+
+def add_lpmode_full(abs_path):
+    path_set = tools.splitLastItem(abs_path, path_splitter, 1)
+    dataset = pullData(path_set[0])
+    if dataset == None:
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    if LPMODE_FULL not in dataset["data_type"] :
+        dataset["data_type"].insert(0, LPMODE_FULL)
+        dataset["lpmode_full_obj"] = lpf.parseLPmodeFull(abs_path)
+        fileLoadingCounter(1)
 
 
 def fileClassifier(abs_path, f):
@@ -327,6 +380,9 @@ def fileClassifier(abs_path, f):
     elif f.find(CL_FLEX_RESULTS) >= 0:
         add_power_runtime(abs_path)
         file_type = CL_FLEX_RESULTS
+    elif f.find(CL_LPMODE_FULL) >= 0:
+        add_lpmode_full(abs_path)
+        file_type = CL_LPMODE_FULL
     elif any(f.find(item) >= 0 for item in CL_AI_MODELS):
         if f.find("llama") >= 0:
             add_llama_model_output(abs_path)
@@ -364,8 +420,11 @@ def fileClassifier(abs_path, f):
         add_pcie_only(abs_path)
         file_type = CL_SOCWATCH
     elif f.lower().find(CL_PROCYON_RESULT_XML[0]) >= 0 and f.lower().endswith(CL_PROCYON_RESULT_XML[1]):
-        add_procyon_result_xml(abs_path)
-        file_type = CL_PROCYON_RESULT_XML
+        add_procyon_xml_result(abs_path)
+        file_type = CL_PROCYON_RESULT_XML 
+    elif f.lower().endswith(CL_PROCYON_RESULT_ARIELLE) :
+        add_procyon_arielle_result(abs_path)
+        file_type = CL_PROCYON_RESULT_ARIELLE
     return file_type
 
 skip_folder_list = ["MSTeamsLogs", "Training", "Report"]
