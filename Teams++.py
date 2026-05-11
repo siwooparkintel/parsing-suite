@@ -87,6 +87,7 @@ socwatch_targets = config_json["socwatch_targets"]
 PCIe_targets = config_json["PCIe_targets"]
 DAQ_target = config_json["DAQ_target"]
 second_folder_list = config_json["Second_folder_list"]
+picks["second_folder_list"] = second_folder_list
 loaded_file_num = 0
 
 
