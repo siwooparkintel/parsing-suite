@@ -31,6 +31,7 @@ print("args: ", args)
 
 CL_UNCLASSIFIED = "unclassified"
 CL_PROCYON_RESULT_XML = ["1h_bl_", ".xml"]
+CL_PROCYON_RESULT_ARIELLE = ".procyon-result"
 CL_ETL = ".etl"
 CL_OUTPUT = '_output.txt'
 CL_SOCWATCH = 'Session.etl'
@@ -174,6 +175,11 @@ def calFromPowerModel(block) :
         else :
             block['power_obj']['power_data']['Eng(J)/Frame'] = "n/a"
 
+def fileLoadingCounter(num) :
+    global loaded_file_num
+    loaded_file_num += num
+
+
 def add_etl(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
     dataset = pullData(path_set[0])
@@ -192,8 +198,7 @@ def add_power(abs_path):
         dataset["data_type"].append(POWER)
     dataset["power_obj"] = psp.parsePowerSummaryCSV(abs_path, DAQ_target)
     # calFromPowerModel(dataset)
-    global loaded_file_num
-    loaded_file_num += 1
+    fileLoadingCounter(1)
 
 def add_trace(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -201,8 +206,7 @@ def add_trace(abs_path):
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
     dataset["trace_obj"] = ptp.parsePowerTraceCSV(abs_path)
-    global loaded_file_num
-    loaded_file_num += 1
+    fileLoadingCounter(1)
 
 def add_socwatch(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -212,8 +216,7 @@ def add_socwatch(abs_path):
     if SOCWATCH not in dataset["data_type"] :
         dataset["data_type"].insert(0, SOCWATCH)
         dataset["socwatch_obj"] = soc.parseSocwatch(abs_path, socwatch_targets)
-        global loaded_file_num
-        loaded_file_num += 1
+        fileLoadingCounter(1)
 
 def add_pcie_only(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
@@ -223,19 +226,27 @@ def add_pcie_only(abs_path):
     if PCIE not in dataset["data_type"] :
         dataset["data_type"].insert(0, PCIE)
         dataset["pcie_socwatch_obj"] = psoc.parsePCIe(abs_path, PCIe_targets)
-        global loaded_file_num
-        loaded_file_num += 1
+        fileLoadingCounter(1)
 
-def add_procyon_result_xml(abs_path):
+def add_procyon_xml_result(abs_path):
     path_set = tools.splitLastItem(abs_path, path_splitter, 1)
     dataset = pullData(path_set[0])
     if dataset == None:
         tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
-    # if PROCYON not in dataset["data_type"] :
-    #     dataset["data_type"].insert(0, PROCYON)
-    dataset["procyon_result_obj"] = pxp.parseProcyonResultXML(abs_path)
-    global loaded_file_num
-    loaded_file_num += 1
+    if PROCYON not in dataset["data_type"] :
+        dataset["data_type"].insert(0, PROCYON)
+    pxp.parseProcyonResultScore(dataset, abs_path)
+    fileLoadingCounter(1)
+
+def add_procyon_arielle_result(abs_path):
+    path_set = tools.splitLastItem(abs_path, path_splitter, 1)
+    dataset = pullData(path_set[0])
+    if dataset == None:
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    if PROCYON not in dataset["data_type"] :
+        dataset["data_type"].insert(0, PROCYON)
+    pxp.parseProcyonResultArielle(dataset, abs_path)
+    fileLoadingCounter(1)
 
 
 def fileClassifier(abs_path, f):
@@ -285,9 +296,11 @@ def fileClassifier(abs_path, f):
         add_pcie_only(abs_path)
         file_type = CL_SOCWATCH
     elif f.lower().find(CL_PROCYON_RESULT_XML[0]) >= 0 and f.lower().endswith(CL_PROCYON_RESULT_XML[1]):
-        add_procyon_result_xml(abs_path)
+        add_procyon_xml_result(abs_path)
         file_type = CL_PROCYON_RESULT_XML
-
+    elif f.lower().endswith(CL_PROCYON_RESULT_ARIELLE) :
+        add_procyon_arielle_result(abs_path)
+        file_type = CL_PROCYON_RESULT_ARIELLE
     return file_type
 
 skip_folder_list = ["MSTeamsLogs", "Training"]
