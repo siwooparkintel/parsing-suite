@@ -9,9 +9,9 @@ Feature working list :
 Workload parsing capability tested:
 1. LPmode full run JSON
 2. Teams 3x3 with vpt FPS
-3. Andrii's CR 484, 404 Teams++ with Procyon XML
+3. Andrii's CR 484, 404 Teams++ with Procyon XML + zipped Arielle results
 4. MS AI model output parser (ex) xPU_Model_PSD1_v0_a_qdq_proxy_w8a16_output.txt
-5. Llama model with benchmark.exe(or.py) output parser (ex) xPU_llama-3.1-8b-instruct-npu-ov_2026-01-15_18-17-57.txt
+5. Llama model with benchmark.exe(or benchmark.py) output parser (ex) xPU_llama-3.1-8b-instruct-npu-ov_2026-01-15_18-17-57.txt
 6. idle_hopper.py can be removed
 7. 
 
@@ -64,6 +64,7 @@ CL_PROCYON_RESULT_XML = ["1h_bl_", ".xml"]
 CL_PROCYON_RESULT_ARIELLE = ".procyon-result"
 CL_LPMODE_FULL = "LPmode_full_run.json"
 CL_ETL = ".etl"
+CL_CATAPULT_V3 = ["catav3", "catapult_v3"]
 CL_AI_MODELS = ['_qdq_proxy_', '_output.txt', 'PU_llama']
 CL_POWERTRACE_REPORT = ['power_trace_report', '.csv']
 CL_SOCWATCH = 'Session.etl'
@@ -88,6 +89,7 @@ MODEL_OUTPUT = "MODEL_OUTPUT"
 VPT_FPS = "VPT_FPS"
 LLAMA = "LLAMA"
 MS_AI_MODEL = "MS_AI_MODEL"
+CATAPULT_V3 = "CATAPULT_V3"
 MIN = "MIN"
 MAX = "MAX"
 MED = "MED"
@@ -357,6 +359,17 @@ def add_lpmode_full(abs_path):
         dataset["lpmode_full_obj"] = lpf.parseLPmodeFull(abs_path)
         fileLoadingCounter(1)
 
+def add_Catapult_V3(abs_path):
+    path_set = tools.splitLastItem(abs_path, path_splitter, 1)
+    dataset = pullData(path_set[0])
+    if dataset == None:
+        tools.errorAndExit("pulling data failed by using the Path as ID: " + abs_path)
+    if CATAPULT_V3 not in dataset["data_type"] :
+        dataset["data_type"].insert(0, CATAPULT_V3)
+        dataset["catapult_v3_obj"] = psp.parseCatapultV3CSV(abs_path)
+        fileLoadingCounter(1)
+
+
 
 def fileClassifier(abs_path, f):
 
@@ -383,9 +396,13 @@ def fileClassifier(abs_path, f):
     elif f.find(CL_LPMODE_FULL) >= 0:
         add_lpmode_full(abs_path)
         file_type = CL_LPMODE_FULL
+    elif any(f.find(key) >= 0 for key in CL_CATAPULT_V3):
+        add_Catapult_V3(abs_path)
+        file_type = CL_CATAPULT_V3
     elif any(f.find(item) >= 0 for item in CL_AI_MODELS):
         if f.find("llama") >= 0:
             add_llama_model_output(abs_path)
+            file_type = CL_AI_MODELS
         else :
             add_MS_AI_model_output(abs_path)
         file_type = CL_AI_MODELS

@@ -1,0 +1,10 @@
+[
+    {
+        "data_label":"Teams3x3",
+        "condition":"Baseline 15FPS",
+        "data_summary_type": "expended",
+        "power_summary_path":"\\\\amr.corp.intel.com\\EC\\proj\\pst\\jf\\SPA-Lab\\Andrii\\Full walk flow\\1_teams3x3\\DAQ\\1_Teams3x3_Run001\\1_Teams3x3_Run001_pacs-summary.csv",
+        "socwatch_summary_path":"\\\\amr.corp.intel.com\\EC\\proj\\pst\\jf\\SPA-Lab\\Andrii\\Full walk flow\\1_teams3x3\\SOCWATCH_REGULAR\\BTL_TEAMS_3X3_FLOW_SOCWATCH_REGULAR_484_1\\BTL_TEAMS_3X3_FLOW_SOCWATCH_REGULAR_484_1.csv",
+        "PCIe_socwatch_summary_path":"\\\\amr.corp.intel.com\\EC\\proj\\pst\\jf\\SPA-Lab\\Andrii\\Full walk flow\\1_teams3x3\\SOCWATCH_MINIMAL\\BTL_TEAMS_3X3_FLOW_SOCWATCH_MINIMAL_484_1\\BTL_TEAMS_3X3_FLOW_SOCWATCH_MINIMAL_484_1.csv"
+    }
+]

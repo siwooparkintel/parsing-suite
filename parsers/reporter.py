@@ -24,3 +24,10 @@ def writeParsedPhi(result_path, hobl_data, socwatch_targets, DAQ_target, PCIe_ta
 
 #     print(mlc_data)
 #     rap.reportAllPowerAndMLC(result_path, mlc_data, socwatch_targets, PCIe_targets, picks)
+def writeParsedCollection(result_path, hobl_data, picks, socwatch_targets, PCIe_targets) :
+    
+    print(hobl_data)
+
+    rap.reportCollectionWithAutohide(result_path, hobl_data, picks, socwatch_targets, PCIe_targets)
+
+

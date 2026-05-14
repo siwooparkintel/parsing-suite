@@ -174,7 +174,7 @@ def getDatasetLabel(abs_path) :
 def createDataset(tdic) :
     hobl_sets.append({
         "data_label":tdic["data_label"],
-        "condition":tdic["condition"],
+        "condition": tdic['condition'],
         "data_summary_type": tdic['data_summary_type'],
         "data_type":[]
     })
@@ -292,7 +292,8 @@ def main():
     # since it is keep improving, changing
     # ===========================================================================
     print("====[hobl_sets]", hobl_sets)
-    rpt.writeParsedSelectionInExcel(result_path, hobl_sets, picks, socwatch_targets, PCIe_targets)
+    # rpt.writeParsedAllInExcel(result_path, hobl_sets, picks, socwatch_targets, PCIe_targets)
+    rpt.writeParsedCollection(result_path, hobl_sets, picks, socwatch_targets, PCIe_targets)
 
 
 start_time = time.perf_counter()

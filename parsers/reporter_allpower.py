@@ -60,7 +60,7 @@ def flatten_data(entry, socwatch_targets, PCIe_targets, picks):
     flattened.update(flattener.flatten_fps_dic(entry))
     flattened.update(flattener.flatten_lpmode_full_dic(entry))
     flattened.update(flattener.flatten_LPmode_sr_dic(entry))
-    flattened.update(entry["procyon_score_obj"]) if "procyon_score_obj" in entry else None
+    flattened.update(flattener.flatten_procyon_score_dic(entry))
     flattened.update(flattener.flatten_teams_vpt_camera_dic(entry))
     flattened.update(flattener.flatten_socwatch_dic(entry, socwatch_targets))
     flattened.update(flattener.flatten_pcie_socwatch_dic(entry, PCIe_targets))
@@ -89,19 +89,20 @@ def reportAllPowerAndType(result_path, hobl_data, socwatch_targets, PCIe_targets
 
 
 
-# def flatten_mlc_data(entry, socwatch_targets, PCIe_targets, picks):
-#     flattened = {'Data label': entry['data_label'][0], 'Condition': entry['data_label'][1]}
-#     flattened.update(flattener.flatten_power_dic(entry, picks))
-#     flattened.update(flattener.flatten_mlc_output_dic(entry))
-#     flattened.update(flattener.flatten_socwatch_dic(entry, socwatch_targets))
-#     flattened.update(flattener.flatten_pcie_socwatch_dic(entry, PCIe_targets))
-#     return flattened
-
-# def reportAllPowerAndMLC(result_path, hobl_data, socwatch_targets, PCIe_targets, picks) :
-#     df = pd.DataFrame([flatten_mlc_data(entry, socwatch_targets, PCIe_targets, picks) for entry in hobl_data])
-#     create_V_H_Excel(df, result_path)
-
-                
+def reportCollectionWithAutohide(result_path, hobl_data, picks, socwatch_targets, PCIe_targets) :
+    data_list = list()
+    for entry in hobl_data :
+        data_list.extend(flatten_data_with_autohide(entry, picks, socwatch_targets, PCIe_targets))
+    df = pd.DataFrame(data_list)
 
 
+    v_path = result_path+"_collection.xlsx"
+
+
+    df_v = df.transpose()
+    df_v = df_v.reset_index()
+    df_v.rename(columns={'index': 'Attribute'}, inplace=True)
+    df_v.to_excel(v_path, index=False)
+
+    autoHideColumn(v_path)
 

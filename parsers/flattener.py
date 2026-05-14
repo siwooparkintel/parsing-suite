@@ -105,8 +105,21 @@ def flatten_teams_vpt_camera_dic(entry):
         return new_output
     else :
         return {}
-    
 
+def flatten_procyon_score_dic(entry):
+    new_output = dict()
+
+    if "procyon_score_obj" in entry and "procyon_score_data" in entry["procyon_score_obj"] :
+        copied = entry["procyon_score_obj"]["procyon_score_data"].copy()
+
+        for key in copied:
+            new_output[key] = copied[key]
+
+        new_output['procyon_score_path'] = entry["procyon_score_obj"]["procyon_score_path"]
+        procyon_score_header_updater(entry["procyon_score_obj"])
+
+    return new_output
+    
 def flatten_procyon_arielle_dic(entry):
     new_output = dict()
 
@@ -202,7 +215,7 @@ def flatten_socwatch_dic(entry, socwatch_targets):
         return {}
     
 def flatten_power_dic(entry, picks):
-    if "power_obj" in entry and "power_data" in entry["power_obj"] :
+    if "power_obj" in entry and "power_data" in entry["power_obj"] and "power_type" in entry["power_obj"] :
         copied = entry["power_obj"]['power_data'].copy()
         copied["power_type"] = entry['power_obj']['power_type']
         copied[getPickedType(picks)] = entry['power_obj']['picked']
@@ -293,6 +306,15 @@ def pcie_socwatch_header_updater(parsed_obj):
     if "pcie_socwatch_path" in parsed_obj and "pcie_socwatch_path" not in header_collection["PCIe_socwatch"] :
         header_collection["PCIe_socwatch"]["pcie_socwatch_path"] = ""
 
+def procyon_score_header_updater(parsed_obj):
+    if "procyon_score" not in header_collection :
+        header_collection["procyon_score"] = dict()
+    for key in parsed_obj["procyon_score_data"].keys() :
+        if key not in header_collection["procyon_score"] :
+            header_collection["procyon_score"][key] = ""
+    if "procyon_score_path" in parsed_obj and "procyon_score_path" not in header_collection["procyon_score"] :
+        header_collection["procyon_score"]["procyon_score_path"] = ""
+
 def procyon_arielle_header_updater(parsed_obj):
     if "procyon_arielle" not in header_collection :
         header_collection["procyon_arielle"] = dict()
@@ -379,8 +401,13 @@ def get_pcie_socwatch_header_list(PCIe_socwatch_header_dict) :
     PCIe_socwatch_header.append("pcie_socwatch_path") if "pcie_socwatch_path" in PCIe_socwatch_header_dict else None
     return PCIe_socwatch_header
 
-def get_procyon_score_header_list() :
-    return ["procyon_overall_score", "procyon_score_path"]
+def get_procyon_score_header_list(procyon_score_header_dict) :
+    procyon_score_header  = list()
+    for procyon_score_item in procyon_score_header_dict:
+        if  procyon_score_item != "procyon_score_path" :
+            procyon_score_header.append(procyon_score_item)
+    procyon_score_header.append("procyon_score_path") if "procyon_score_path" in procyon_score_header_dict else None
+    return procyon_score_header
 
 def get_procyon_arielle_header_list(procyon_header_dict) :
     procyon_arielle_header  = list()
@@ -411,7 +438,7 @@ def getHeaderCollection():
     flatten_header.extend(get_AI_model_list(header_collection["AI_model"])) if "AI_model" in header_collection else None
     flatten_header.extend(get_lpmode_full_header_list(header_collection["lpmode_full"])) if "lpmode_full" in header_collection else None
     flatten_header.extend(get_teams_vpt_camera_list(header_collection["teams_vpt"])) if "teams_vpt" in header_collection else None
-    flatten_header.extend(get_procyon_score_header_list())
+    flatten_header.extend(get_procyon_score_header_list(header_collection["procyon_score"])) if "procyon_score" in header_collection else None
     flatten_header.extend(get_socwatch_header_list(header_collection["socwatch"])) if "socwatch" in header_collection else None
     flatten_header.extend(get_pcie_socwatch_header_list(header_collection["PCIe_socwatch"])) if "PCIe_socwatch" in header_collection else None
     flatten_header.extend(get_procyon_arielle_header_list(header_collection["procyon_arielle"])) if "procyon_arielle" in header_collection else None
