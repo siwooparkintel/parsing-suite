@@ -74,54 +74,8 @@ socwatch_targets = config_json["socwatch_targets"]
 PCIe_targets = config_json["PCIe_targets"]
 DAQ_target = config_json["DAQ_target"]
 second_folder_list = config_json["Second_folder_list"]
+picks['second_folder_list'] = second_folder_list
 loaded_file_num = 0
-
-
-# path_splitter = "\\"
-
-# def replaceSplitter(Abs_path) :
-#     Abs_path = Abs_path.replace("/", "\\")
-#     return Abs_path
-
-# if BASE is None:
-#     from tools.tk_dialogs import select_folder_dialog
-
-#     folder_path = select_folder_dialog(
-#         title="Select a folder",
-#         storage_name="last_opened_folder",
-#         base_dir=Path(SCRIPT_DIR),
-#     )
-#     if folder_path:
-#         BASE = replaceSplitter(folder_path)
-#         print(f"Selected folder: {BASE}")
-#     else:
-#         tools.errorAndExit("No folder selected")
-
-collection = [
-    {
-        "data_label":"Llama 8B GPU 512 token gen",
-        "condition":"Baseline DDR8533",
-        "data_summary_type": "compact",
-        "power_summary_path":r"\\amr.corp.intel.com\EC\proj\pst\jf\SPA-Lab\Siwoo\CatapultV3\WW20.2_LNL32_CataV3_PC10.2\PC10.2_UHX\web_cataV3_si_001_ppick\web_cataV3_si_001\web_cataV3_si_001_pacs-summary.csv",
-        "socwatch_summary_path":r"\\amr.corp.intel.com\EC\proj\pst\jf\SPA-Lab\Siwoo\CatapultV3\WW20.2_LNL32_CataV3_PC10.2\PC10.2_UHX\web_cataV3_si_008_spick\socwatch\PC10.2_UHX_web_cataV3_si.csv",
-        "PCIe_socwatch_summary_path":r"\\amr.corp.intel.com\EC\proj\pst\jf\SPA-Lab\Siwoo\CatapultV3\WW20.2_LNL32_CataV3_PC10.2\PCIe_only_Socwatch\UHX_baseline\web_cataV3_si_002_pick\socwatch\web_cataV3_si_CataV3_UHX.csv"
-    },    
-    {
-        "data_label":"Llama 8B GPU 512 token gen",
-        "condition":"TME DDR8533",
-        "data_summary_type": "compact",
-        "power_summary_path":r"\\amr.corp.intel.com\EC\proj\pst\jf\SPA-Lab\Siwoo\CatapultV3\WW20.2_LNL32_CataV3_PC10.2\PC10.2_UHX_LCLT\web_cataV3_si_006_ppick\web_cataV3_si_006\web_cataV3_si_006_pacs-summary.csv",
-        "socwatch_summary_path":r"\\amr.corp.intel.com\EC\proj\pst\jf\SPA-Lab\Siwoo\CatapultV3\WW20.2_LNL32_CataV3_PC10.2\PC10.2_UHX_LCLT\web_cataV3_si_000_spick\socwatch\PC10.2_UHX_LCLT_web_cataV3_si.csv",
-        "PCIe_socwatch_summary_path":r"\\amr.corp.intel.com\EC\proj\pst\jf\SPA-Lab\Siwoo\CatapultV3\WW20.2_LNL32_CataV3_PC10.2\PCIe_only_Socwatch\UHX_LCLT\web_cataV3_si_000_pick\socwatch\web_cataV3_si_CataV3_UXH_LCLT.csv"
-    },
-]
-
-
-#=============================================================================
-# place this same order of the socwatch summary for ultimate performance
-# in that case, it only looping thru one time of socwatch summary file.
-# if you are not matching the data table order, it will do the loop from the beginning
-#=============================================================================
 
 
 

@@ -215,10 +215,12 @@ def flatten_socwatch_dic(entry, socwatch_targets):
         return {}
     
 def flatten_power_dic(entry, picks):
-    if "power_obj" in entry and "power_data" in entry["power_obj"] and "power_type" in entry["power_obj"] :
+    if "power_obj" in entry and "power_data" in entry["power_obj"] :
         copied = entry["power_obj"]['power_data'].copy()
-        copied["power_type"] = entry['power_obj']['power_type']
-        copied[getPickedType(picks)] = entry['power_obj']['picked']
+        if "power_type" in entry["power_obj"]:
+            copied["power_type"] = entry['power_obj']['power_type'] 
+        if "picked" in entry["power_obj"]:
+            copied[getPickedType(picks)] = entry['power_obj']['picked'] 
         copied["power_path"] = entry['power_obj']['power_path']
         power_header_updater(entry["power_obj"], picks)
         return copied
