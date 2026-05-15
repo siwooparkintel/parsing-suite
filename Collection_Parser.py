@@ -1,6 +1,8 @@
 import time
 import json
 import os
+import shutil
+import tempfile
 from os import listdir
 from os.path import isfile, join
 from pathlib import Path
@@ -83,11 +85,23 @@ loaded_file_num = 0
 
 
 if args.input is None:
-    print("============== No input")
-else :
-    with open(args.input, 'r') as f:
-        collection = json.load(f)
-        print(collection)
+    from tools.tk_dialogs import select_file_dialog
+
+    input_path = select_file_dialog(
+        title="Select collection JSON file",
+        filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+        storage_name="last_opened_collection",
+        base_dir=Path(SCRIPT_DIR),
+    )
+    if input_path is None:
+        tools.errorAndExit("No collection file selected")
+    BASE = input_path
+else:
+    input_path = args.input
+
+with open(input_path, 'r') as f:
+    collection = json.load(f)
+    print(collection)
 
 if args.daq is None:
     print("============== No external DAQ.json provided")
@@ -103,8 +117,12 @@ else :
         socwatch_targets = json.load(f)
         print(socwatch_targets)
 
-if result_path == None : 
-    result_path = f"{BASE}\\collection_summary"
+final_dest_path = None
+if result_path is None:
+    _json_parent = Path(input_path).parent
+    result_path = os.path.join(tempfile.gettempdir(), "collection_summary")
+    final_dest_path = str(_json_parent / "collection_summary")
+    print(f"[Output] Writing to temp: {result_path}, will copy to: {final_dest_path}")
 
 
 
@@ -248,6 +266,11 @@ def main():
     print("====[hobl_sets]", hobl_sets)
     # rpt.writeParsedAllInExcel(result_path, hobl_sets, picks, socwatch_targets, PCIe_targets)
     rpt.writeParsedCollection(result_path, hobl_sets, picks, socwatch_targets, PCIe_targets)
+    if final_dest_path is not None:
+        src_file = result_path + "_collection.xlsx"
+        dst_file = final_dest_path + "_collection.xlsx"
+        shutil.copy2(src_file, dst_file)
+        print(f"[Output] Copied to: {dst_file}")
 
 
 start_time = time.perf_counter()
