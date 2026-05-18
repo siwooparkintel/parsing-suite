@@ -134,6 +134,22 @@ def coreFreqAvrTable(table, keyIdx, ValueIdx):
         data[key] = tools.tryIntifNumber(value)
     table['table_data'] = data
 
+def coreResidencyParser(copied, data, startIdx) :
+    for index in range(startIdx, len(copied[0]), 1):
+        key = copied[0][index].split("/")[-1]
+        if key.rfind("(%)") < 0:
+            break
+        value = copied[startIdx][index]
+        data[key+" "+copied[startIdx][0]] = tools.tryRoundifNumber(value)
+
+def coreCstateResidencyTable(table) :
+    copied = table['table_data'].copy()
+    data = {copied[0][0]+" "+copied[1][0]:copied[1][0]}
+    coreResidencyParser(copied, data, 1)
+    data[copied[0][0]+" "+copied[2][0]] = copied[2][0]
+    coreResidencyParser(copied, data, 2)
+    table['table_data'] = data
+
 def coreResidencyTable(table) :
     copied = table['table_data'].copy()
     data = {copied[0][0]:copied[1][0]}
@@ -143,6 +159,7 @@ def coreResidencyTable(table) :
             break
         value = copied[1][index]
         data[key] = tools.tryRoundifNumber(value)
+
     table['table_data'] = data
 
 def osWakeupsTable(table) :
@@ -233,7 +250,9 @@ def socwatchTableTypeChecker(table, core_type, soc_target, tdic) :
 
     if label == 'CPU_model':
         cpuModelTable(table)
-    elif label == 'Core_Cstate' or label == 'ACPI_Cstate' : 
+    elif label == 'Core_Cstate':
+        coreCstateResidencyTable(table)
+    elif label == 'ACPI_Cstate' : 
         coreResidencyTable(table)
     elif label == 'OS_wakeups':
         osWakeupsTable(table)
