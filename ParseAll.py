@@ -7,9 +7,9 @@ Feature working list :
 4. Skip if no data type detected, instead of creating empty excel line
 
 Workload parsing capability tested:
-1. LPmode full run JSON
-2. Teams 3x3 with vpt FPS
-3. Andrii's CR 484, 404 Teams++ with Procyon XML + zipped Arielle results
+1. LPmode full run JSON <LPmode_SR_hopper.py can be removed>
+2. Teams 3x3 with vpt FPS <Teams_hopper.py can be removed>
+3. Andrii's CR 484, 404 Teams++ with Procyon XML + zipped Arielle results <Teams++.py integrated into ParseAll.py but will be remained for dedicated Teams parsing for Andrii>
 4. MS AI model output parser (ex) xPU_Model_PSD1_v0_a_qdq_proxy_w8a16_output.txt
 5. Llama model with benchmark.exe(or benchmark.py) output parser (ex) xPU_llama-3.1-8b-instruct-npu-ov_2026-01-15_18-17-57.txt
 6. idle_hopper.py can be removed
