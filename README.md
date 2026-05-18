@@ -46,7 +46,12 @@ python ParseAll.py -i <input_path> -o <output_path> -c <config.json> [options]
 
 **For collection-based analysis:**
 ```bash
-python Collection_Parser.py -i <config.json> -o <output_path> [options]
+# Provide collection JSON and output prefix explicitly
+python Collection_Parser.py -i <collection.json> -o <output_path>
+# Use a specific platform config (default: config/LNL_default.config)
+python Collection_Parser.py -c <platform.config> -i <collection.json> -o <output_path>
+# Omit -i to pick the JSON via file dialog; omit -o to auto-write next to the input JSON
+python Collection_Parser.py
 ```
 
 **For platform profiling:**
@@ -132,7 +137,7 @@ python parsers/fps_img_parser.py <image_or_folder> --debug
 ✓ **Batch Processing** - Process large datasets efficiently
 ✓ **Excel Output** - Professional Excel reports
 ✓ **Per-Core Analysis** - Detailed per-core CPU metrics
-✓ **Flexible Input** - JSON config or direct Python configuration
+✓ **Flexible Input** - JSON config file or interactive file dialog
 ✓ **Data Prioritization** - Power metrics prioritized; optional secondary sources
 ✓ **Collapsible Visualization** - Hide/show core data for cleaner presentation
 

@@ -12,7 +12,7 @@ Collection_Parser is used **after** data selection via ParseAll:
 
 1. Review aggregated data from ParseAll
 2. Identify specific Power, Socwatch, and PCIe files
-3. Create collection configuration (JSON or inline)
+3. Create collection configuration JSON
 4. Run Collection_Parser for detailed analysis
 
 ## Features
@@ -20,7 +20,7 @@ Collection_Parser is used **after** data selection via ParseAll:
 - **Multi-Source Combination**: Integrates Power, Socwatch, and PCIe metrics
 - **Per-Core P-State Analysis**: CPU P-states presented on a per-core basis
 - **Collapsible Visualization**: Hide secondary cores to highlight key data
-- **Flexible Input**: JSON configuration or Python hardcoded
+- **Flexible Input**: JSON configuration file or interactive file dialog
 - **Compact/Expanded Modes**: Choose data visualization style
 - **Projection-Ready**: Structured for stakeholder review
 - **High-Resolution Output**: Excel files with professional formatting
@@ -28,22 +28,18 @@ Collection_Parser is used **after** data selection via ParseAll:
 ## Usage
 
 ```bash
-python Collection_Parser.py -i <config.json> -o <output_path> [options]
+python Collection_Parser.py [-c <platform.config>] [-i <collection.json>] [-o <output_path>] [options]
 ```
 
-### Required Arguments
-
-| Argument | Description |
-|----------|-------------|
-| `-i, --input` | JSON config file OR omit to use hardcoded collection |
-
-### Optional Arguments
+### Arguments
 
 | Argument | Description | Default |
 |----------|-------------|---------|
-| `-o, --output` | Output Excel file prefix | Generated from config |
-| `-d, --daq` | DAQ power rail config (JSON) | Built-in defaults |
-| `-st, --swtarget` | Socwatch targets (JSON) | Built-in defaults |
+| `-c, --config` | Platform config file (JSON). Sets socwatch/PCIe/DAQ targets and second folder list | `config/LNL_default.config` |
+| `-i, --input` | Collection JSON file listing datasets to parse. If omitted, a file dialog opens for interactive selection | File dialog |
+| `-o, --output` | Output Excel file prefix. If omitted, writes to system temp dir and auto-copies result to the input JSON's parent folder | Auto (temp + copy) |
+| `-d, --daq` | DAQ power rail config (JSON). Overrides value from `-c` config | From `-c` config |
+| `-st, --swtarget` | Socwatch targets (JSON). Overrides value from `-c` config | From `-c` config |
 
 ## Examples
 
@@ -53,14 +49,30 @@ python Collection_Parser.py -i <config.json> -o <output_path> [options]
 python Collection_Parser.py -i .\config\collection.json -o .\results\collateral
 ```
 
-### Using Hardcoded Configuration
+### Using File Dialog (Interactive Selection)
+
+Omit `-i` to open a file picker and select the collection JSON:
 
 ```bash
-# Edit Collection_Parser.py, then run:
 python Collection_Parser.py -o .\results\collateral
 ```
 
-### With Custom DAQ and Socwatch Configs
+### Auto Output Path (No `-o`)
+
+Omit `-o` to write the result automatically to the same folder as the input JSON:
+
+```bash
+python Collection_Parser.py -i .\config\collection.json
+# Output: <collection.json parent folder>\collection_summary_collection.xlsx
+```
+
+### With Custom Platform Config
+
+```bash
+python Collection_Parser.py -c .\config\PTL_default.config -i collection.json -o .\results\collateral
+```
+
+### With Override DAQ and Socwatch Configs
 
 ```bash
 python Collection_Parser.py -i config.json -d .\daq_targets.json -st .\socwatch_targets.json
@@ -97,10 +109,11 @@ python Collection_Parser.py -i config.json -d .\daq_targets.json -st .\socwatch_
 |-------|------|----------|-------------|
 | `data_label` | String | Yes | Unique identifier for this dataset |
 | `condition` | String | Yes | Display name for collateral |
-| `data_summary_type` | String | Yes | "compact" or "expanded" |
-| `power_summary_path` | String | Yes | Path to Power summary file |
-| `socwatch_summary_path` | String | Yes | Path to Socwatch summary file |
-| `PCIe_socwatch_summary_path` | String | No | Path to PCIe Socwatch (optional) |
+| `data_summary_type` | String | Yes | `"compact"` or `"expanded"` |
+| `power_summary_path` | String | No | Path to DAQ power summary CSV |
+| `socwatch_summary_path` | String | No | Path to Socwatch summary file |
+| `PCIe_socwatch_summary_path` | String | No | Path to PCIe-only Socwatch summary |
+| `trace_path` | String | No | Path to DAQ power trace CSV (for per-sample trace data) |
 
 ### Data Summary Types
 
@@ -116,43 +129,9 @@ python Collection_Parser.py -i config.json -d .\daq_targets.json -st .\socwatch_
 - Complete performance picture
 - Comprehensive documentation
 
-## Python Hardcoded Configuration
+## Output
 
-Edit directly in Collection_Parser.py:
-
-```python
-collection = [
-    {
-        "data_label": "CataV3 UHX1",
-        "condition": "CataV3+UHX1",
-        "data_summary_type": "compact",
-        "power_summary_path": r"\\server\data\power\UHX1_power.xlsx",
-        "socwatch_summary_path": r"\\server\data\socwatch\UHX1_socwatch.xlsx",
-        "PCIe_socwatch_summary_path": r"\\server\data\pcie\UHX1_pcie.xlsx"
-    },
-    {
-        "data_label": "CataV3 UHX1 LC",
-        "condition": "CataV3+UHX1+LC",
-        "data_summary_type": "compact",
-        "power_summary_path": r"\\server\data\power\UHX1_LC_power.xlsx",
-        "socwatch_summary_path": r"\\server\data\socwatch\UHX1_LC_socwatch.xlsx",
-        "PCIe_socwatch_summary_path": r"\\server\data\pcie\UHX1_LC_pcie.xlsx"
-    },
-    {
-        "data_label": "CataV3 UHX2",
-        "condition": "CataV3+UHX2",
-        "data_summary_type": "expanded",
-        "power_summary_path": r"\\server\data\power\UHX2_power.xlsx",
-        "socwatch_summary_path": r"\\server\data\socwatch\UHX2_socwatch.xlsx"
-    }
-]
-```
-
-**Advantages of hardcoding:**
-- Avoids Windows path escape issues using `r` prefix
-- Easier parametrization for repeated runs
-- Version control friendly
-- No separate configuration file needed
+The output is a single Excel workbook named `<prefix>_collection.xlsx`. When `-o` is omitted, the file is written to the system temp directory first and then automatically copied alongside the input collection JSON.
 
 ## Workflow
 
@@ -169,9 +148,8 @@ Open generated Excel file and identify:
 - Data quality and completeness
 - Configurations for comparison
 
-### Step 3: Create Configuration
+### Step 3: Create Collection JSON
 
-Option A - JSON File:
 ```json
 [
     {
@@ -185,17 +163,17 @@ Option A - JSON File:
 ]
 ```
 
-Option B - Python Hardcoded:
-Edit Collection_Parser.py directly with file paths
-
 ### Step 4: Run Collection_Parser
 
 ```bash
-# Using JSON
-python Collection_Parser.py -i config.json -o collateral.xlsx
+# Provide input and output explicitly
+python Collection_Parser.py -i config.json -o collateral
 
-# Using hardcoded (after editing file)
-python Collection_Parser.py -o collateral.xlsx
+# Omit -i to pick the JSON via file dialog
+python Collection_Parser.py -o collateral
+
+# Omit -o to auto-write result next to the input JSON
+python Collection_Parser.py -i config.json
 ```
 
 ### Step 5: Review Collateral
@@ -219,9 +197,28 @@ Open generated Excel to verify:
 | **Comparison** | Side-by-side metrics |
 | **Metadata** | File sources and timestamps |
 
+## Platform Config File (`-c, --config`)
+
+The platform config file (`.config` or `.json`) centralises settings that are independent of the collection being analysed. It is loaded once at startup and can be overridden per-run with `-d` or `-st`.
+
+Default: `config/LNL_default.config` (relative to the script directory).
+
+### Keys used from the config
+
+| Key | Description |
+|-----|-------------|
+| `socwatch_targets` | List of Socwatch metric definitions (same format as `-st`) |
+| `PCIe_targets` | List of PCIe metric definitions |
+| `DAQ_target` | DAQ power rail name dictionary (same format as `-d`) |
+| `Second_folder_list` | Additional folder paths scanned for supplementary data |
+
+---
+
+
+
 ## Configuration Details
 
-### DAQ Power Rail Configuration (-d, --daq)
+### DAQ Power Rail Configuration (`-d, --daq`)
 
 ```json
 {
@@ -236,7 +233,7 @@ Open generated Excel to verify:
 }
 ```
 
-### Socwatch Targets Configuration (-st, --swtarget)
+### Socwatch Targets Configuration (`-st, --swtarget`)
 
 ```json
 [
