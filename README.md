@@ -17,11 +17,8 @@ A comprehensive framework for parsing and analyzing diverse workload performance
 | **bm_llama_parser.py** | Llama model analysis | [Details](./docs/llama-parser.md) |
 | **SA_ETL_first_epoch.py** | ETL first-epoch analysis | [Details](./docs/sa-etl-first-epoch.md) |
 | **socwatch_pp.py** | SocWatch ETL batch post-processor | [Details](./docs/socwatch_pp.md) |
-| **trace_plotter.py** | SocWatch `_trace.csv` section splitter and chart generator | [Details](./docs/trace_plotter.md) |
 | **Teams++.py** | Teams/AI mixed-source parser with Procyon integration | [Details](./docs/teams-plus-plus.md) |
 | **trace_power_slicer.py** | Power trace slicer by rails and time ranges | [Details](./docs/README_trace_slicer.md) |
-| **newSW_json_parser.py** | Socwatch JSON event analyzer with visualization | [Details](./docs/newSW_json_parser_usage.md) |
-| **vtune_pwr_parser.py** | VTune .pwr parser with ETL auto-generation and streaming event export | Script help: `python vtune_pwr_parser.py --help` |
 
 ## Quick Start
 
