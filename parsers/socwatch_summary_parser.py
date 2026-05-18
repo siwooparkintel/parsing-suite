@@ -162,46 +162,55 @@ def osWakeupsTable(table) :
         data[key] = value
     table['table_data'] = data
 
+def floatNumberOrArray(value, prev_value = None) : 
+    try :
+        return float(value)
+    except :
+        if prev_value is not None and isinstance(prev_value, list) :
+            summed = [round(float(a) + float(b), 3) for a, b in zip(value, prev_value)]
+            return summed
+        else :
+            return value
+
+
 def bucketizedTable(table, keyIdx, ValueIdx, buckets) :
     copied = table['table_data'].copy()
-    data = dict()
-    bucketized = {bk: 0 for bk in buckets}
 
-    for idx in range(len(copied)):
-        line = copied[idx]
-        key = line[keyIdx]
-        if "_Pstate" in table['label'] and idx > 0:
-            key = key.split(".")[0]
-        data[key] = line[ValueIdx]
-        """
-        Change this to accumulate all values that larger than the last bucket, should be included in the last bucket
-        e.g.  if the buckets are [ 5, 6-10, 11-20, 21], and the key is 25, it should be included in the '21' bucket
-        elif len(ranges) == 1 and int(bucket) <= int(key) :
-        """
-        if idx > 0 :
-            for bucket in bucketized :
-                ranges = bucket.split("-")
-                if len(ranges) == 1 and bucket == key :
-                    bucketized[bucket] = float(line[ValueIdx])
-                elif len(ranges) == 1 and int(key) > int(ranges[0]) and bucket == buckets[-1]:
-                    bucketized[bucket] = bucketized[bucket] + float(line[ValueIdx]) 
-                elif len(ranges) == 2:
-                    min = int(ranges[0])
-                    max = int(ranges[1])
-                    if int(key) >= min and int(key) <= max :
-                        bucketized[bucket] = bucketized[bucket] + float(line[ValueIdx])
+    it = iter(copied.items())
+    first_key, first_value = next(it)
+    first_copied = {first_key: first_value}
+    bucketized = dict()
 
-    table['table_data'] = data
-    extended = dict()
-    first_key_value = next(iter(data.items()))
-    extended[first_key_value[0]] = first_key_value[1]
-    extended.update(bucketized)
-    table['bucketized_data'] = extended
+    for bucket in buckets :
+        bucketized[bucket] = 0
+    
+    for key, value in it:
+        # this is for mainly CPU P-State, marked as range such as "4801-4900"
+        # the feature requster aggreed with using the first value to represent the range.
+        check_key = key.split("-")
+        if key == "<= 400":
+            key = "400"
+        elif key == "0-idle":
+            key = "0"
+        elif len(check_key) == 2 :   
+            key = check_key[0]
+        else :
+            print("unexpected key format for bucketizing: ", key)
 
-# def pchActiveTable(table) :
-#     copied = table['table_data'].copy()
-#     data = dict()
-#     table['table_data'] = data
+        for bucket in bucketized :
+            ranges = bucket.split("-")
+            if len(ranges) == 1 and bucket == key :
+                bucketized[bucket] = floatNumberOrArray(value)
+            elif len(ranges) == 1 and int(key) > int(ranges[0]) and bucket == buckets[-1]:
+                bucketized[bucket] = floatNumberOrArray(value, bucketized[bucket])
+            elif len(ranges) == 2:
+                min = int(ranges[0])
+                max = int(ranges[1])
+                if int(key) >= min and int(key) <= max :
+                    bucketized[bucket] = floatNumberOrArray(value, bucketized[bucket])
+
+    first_copied.update(bucketized)
+    table['bucketized_data'] = first_copied
 
 
 def defaultResidencyTable(table, keyIdx, ValueIdx) :
@@ -239,11 +248,12 @@ def socwatchTableTypeChecker(table, core_type, soc_target, tdic) :
     elif label == "CPU_temp" or label == "SoC_temp":
         tempAvrTable(table)
     elif label == "PMC+SLP_S0":
-        defaultResidencyTable(table, 0, 2) 
-    elif "buckets" in soc_target :
-        bucketizedTable(table, 0, 1, soc_target['buckets'])
+        defaultResidencyTable(table, 0, 2)
     else :
         defaultResidencyTable(table, 0, 1)
+
+    if "buckets" in soc_target :
+        bucketizedTable(table, 0, 1, soc_target['buckets'])
 
 def extractHeader(table) :
 

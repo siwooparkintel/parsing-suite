@@ -75,31 +75,6 @@ python socwatch_pp.py <input_folder>
 python socwatch_pp.py
 ```
 
-**For SocWatch _trace.csv plotting:**
-```bash
-python trace_plotter.py <trace_csv> [options]
-# List all sections without writing output:
-python trace_plotter.py <trace_csv> --list
-# Filter to specific metrics and plot:
-python trace_plotter.py <trace_csv> --filter "DDR Bandwidth|NPU Power|IGFX"
-```
-
-**For Socwatch JSON analysis:**
-```bash
-python newSW_json_parser.py -i <swjson_file> -e "Event Name 1" "Event Name 2"
-# Or interactive mode with file dialog:
-python newSW_json_parser.py
-```
-
-**For VTune .pwr parsing (with ETL fallback):**
-```bash
-python vtune_pwr_parser.py -i <pwr_file_or_etl_folder>
-# Parse selected event groups only:
-python vtune_pwr_parser.py -i <pwr_file_or_etl_folder> -e "DDR Bandwidth Requests by Component"
-# Generate .swjson fallback if needed for streaming rows:
-python vtune_pwr_parser.py -i <pwr_file_or_etl_folder> --generate-swjson
-```
-
 **For FPS screenshot OCR:**
 ```bash
 python parsers/fps_img_parser.py <image_or_folder> --debug
@@ -111,10 +86,8 @@ python parsers/fps_img_parser.py <image_or_folder> --debug
 - **Advanced workflows**: See [Collection_Parser documentation](./docs/collection-parser.md)
 - **Model-specific analysis**: Review [Phi_summary](./docs/phi-summary.md) or [Llama parser](./docs/llama-parser.md)
 - **SocWatch ETL processing**: See [socwatch_pp](./docs/socwatch_pp.md) for batch .etl file processing
-- **SocWatch trace plotting**: See [trace_plotter](./docs/trace_plotter.md) for `_trace.csv` section splitting and chart generation
 - **Teams/Procyon mixed parsing**: See [Teams++ guide](./docs/teams-plus-plus.md) for recursive dataset parsing and Excel export
 - **Power trace slicing**: See [trace_power_slicer](./docs/README_trace_slicer.md) for workload analysis
-- **Socwatch JSON analysis**: See [newSW_json_parser](./docs/newSW_json_parser_usage.md) for event visualization
 - **Best practices**: Review individual parser documentation in [docs](./docs/) folder
 
 ## Supported Data Types
@@ -223,46 +196,12 @@ Complete documentation for each tool is in the [docs](./docs/) folder:
 - [SA ETL First Epoch Guide](./docs/sa-etl-first-epoch.md)
 - [SocWatch Post-Processor Guide](./docs/socwatch_pp.md)
 - [Teams++ Guide](./docs/teams-plus-plus.md)
-- [Trace Power Slicer Guide](./docs/README_trace_slicer.md)
-- [Socwatch JSON Parser Guide](./docs/SWJSON_PARSER_USAGE.md)
+
 
 ## Best Known Methods (BKM)
 
 For detailed step-by-step guidance and best practices, refer to individual parser documentation in the [docs](./docs/) folder.
 
-## Directory Structure
-
-```
-parsing-suite/
-├── ParseAll.py                      # Multi-source parser
-├── Phi_summary.py                   # Phi model parser
-├── Collection_Parser.py             # Collection aggregator
-├── CatapultV3_Full_Parser.py        # Platform profiler
-├── bm_llama_parser.py               # Llama model parser
-├── SA_ETL_first_epoch.py            # ETL analysis
-├── socwatch_pp.py                   # SocWatch ETL post-processor
-├── Teams++.py                       # Teams/AI mixed-source parser
-├── trace_power_slicer.py            # Power trace slicer
-├── swjson_parser.py                 # Socwatch JSON analyzer
-├── requirements.txt                 # Python dependencies
-├── docs/                            # Detailed documentation
-│   ├── parseall.md
-│   ├── phi-summary.md
-│   ├── collection-parser.md
-│   ├── catapultv3-full-parser.md
-│   ├── llama-parser.md
-│   ├── sa-etl-first-epoch.md
-│   ├── socwatch_pp.md
-│   ├── teams-plus-plus.md
-│   ├── README_trace_slicer.md
-│   └── SWJSON_PARSER_USAGE.md
-├── parsers/                         # Shared parser modules
-├── src/                             # Configuration and source data
-├── tools/                           # Utility functions
-├── test/                            # Test cases
-├── .gitignore                       # Git ignore rules
-└── README.md                        # This file
-```
 
 ## Requirements
 
