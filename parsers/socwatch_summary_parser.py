@@ -135,7 +135,7 @@ def coreFreqAvrTable(table, keyIdx, ValueIdx):
     table['table_data'] = data
 
 def coreResidencyParser(copied, data, startIdx) :
-    for index in range(startIdx, len(copied[0]), 1):
+    for index in range(1, len(copied[0]), 1):
         key = copied[0][index].split("/")[-1]
         if key.rfind("(%)") < 0:
             break
