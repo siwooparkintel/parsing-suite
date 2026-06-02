@@ -1,0 +1,40 @@
+{
+    "DAQ_target": {
+        "P_SOC": -1,
+        "P_VCCCORE": -1,
+        "P_VCCSA": -1,
+        "P_VCCGT": -1,
+        "Run Time": -1,
+        "SOC_POWER_RAIL_NAME": "P_SOC",
+        "PCORE_POWER_RAIL_NAME": "P_VCCCORE",
+        "SA_POWER_RAIL_NAME": "P_VCCSA",
+        "GT_POWER_RAIL_NAME": "P_VCCGT",
+        "TARGET_COLUMN": "Average"
+    },
+    "socwatch_targets": [
+        {"key": "CPU_model", "lookup": "CPU native model"}
+    ],
+    "PCIe_targets": [
+        {"key": "PCIe_LPM", "devices": ["NVM"], "lookup": "PCIe LPM Summary - Sampled: Approximated Residency (Percentage)"}
+    ],
+    "AI_parsing_items": [
+        {"key": "read_model",       "lookup": "[ INFO ] Read model took",                              "unit": "ms"},
+        {"key": "compile_model",    "lookup": "[ INFO ] Compile model took",                           "unit": "ms"},
+        {"key": "start_mem_usage",  "lookup": "[ INFO ] Start of compilation memory usage: Peak",      "unit": "KB"},
+        {"key": "end_mem_usage",    "lookup": "[ INFO ] End of compilation memory usage: Peak",        "unit": "KB"},
+        {"key": "ram_used",         "lookup": "[ INFO ] Compile model ram used",                       "unit": "KB"},
+        {"key": "first_inference",  "lookup": "[ INFO ] First inference took",                         "unit": "ms"},
+        {"key": "device",           "lookup": "[ INFO ] Execution Devices:",                           "unit": ""},
+        {"key": "iterations",       "lookup": "[ INFO ] Count:",                                       "unit": ""},
+        {"key": "duration",         "lookup": "[ INFO ] Duration:",                                    "unit": "ms"},
+        {"key": "latency_median",   "lookup": "[ INFO ]    Median:",                                   "unit": "ms"},
+        {"key": "latency_average",  "lookup": "[ INFO ]    Average:",                                  "unit": "ms"},
+        {"key": "throughput",       "lookup": "[ INFO ] Throughput:",                                  "unit": "FPS"}
+    ],
+    "BM_parsing_items": [
+        {"key": "Pipeline init time", "lookup": "[ INFO ] Pipeline initialization time: ", "unit": "s"},
+        {"key": "Inference count",    "lookup": "inference count: ",                       "unit": ""},
+        {"key": "Average",            "lookup": "[ INFO ] [Average] P[",                  "unit": "string"}
+    ],
+    "Second_folder_list": ["ETL", "POWER", "SOCWATCH", "PCIE"]
+}

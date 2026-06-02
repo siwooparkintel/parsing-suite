@@ -45,12 +45,19 @@
         {"key": "CPU_temp", "lookup": "Temperature Metrics Summary - Sampled: Min/Max/Avg"},
         {"key": "SoC_temp", "lookup": "SoC Domain Temperatures Summary - Sampled: Min/Max/Avg"},
         {"key": "NPU_Dstate", "lookup": "Neural Processing Unit (NPU) D-State Residency Summary: Residency (Percentage and Time)"},
+        {"key": "PSR_state", "lookup": "Panel Self-Refresh (PSR2) Summary - Sampled: Approximated Residency (Percentage)"},
         {"key": "PMC+SLP_S0", "lookup": "PCH Active State (as percentage of PMC Active plus SLP_S0 Time) Summary: Residency (Percentage)"},
         {"key": "DC_count", "lookup": "Dynamic Display State Enabling"},
         {"key": "Media_Cstate", "lookup": "Media C-State Residency Summary: Residency (Percentage and Time)"},
         {"key": "NPU_Pstate", "lookup": "Neural Processing Unit (NPU) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "1900", "1901-2900", "2901-3899", "3900"]},
         {"key": "MEMSS_Pstate", "lookup": "Memory Subsystem (MEMSS) P-State Summary - Sampled: Approximated Residency (Percentage)"},
+        {"key": "Display_Pstate", "lookup": "Display P-State Summary - Sampled: Approximated Residency (Percentage)"},
+        {"key": "Media_Pstate", "lookup": "Media P-State Summary - Sampled: Approximated Residency (Percentage)"},
         {"key": "NoC_Pstate", "lookup": "Network on Chip (NoC) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["400", "401-1049", "1050"]},
+        {"key": "MUFASA_BW", "lookup": "System Cache Bandwidth Summary: Average Rate and Total"},
+        {"key": "HBO_BW", "lookup": "Home Agent Box (HBO) Bandwidth Summary: Average Rate and Total"},
+        {"key": "SANTA_BW", "lookup": "Cluster0 Cores Bandwidth Summary: Average Rate and Total"},
+        {"key": "NOC_BW", "lookup": "Network on Chip IO Bandwidth Summary: Average Rate and Total"},
         {"key": "iGFX_Pstate", "lookup": "Integrated Graphics P-State/Frequency Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "400", "401-1799", "1800-2499", "2500"]}
     ],
     "PCIe_targets" : [
@@ -60,3 +67,4 @@
     ],
     "Second_folder_list" : ["ETL", "POWER", "SOCWATCH", "PCIE"]
 }
+

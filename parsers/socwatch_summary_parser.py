@@ -192,14 +192,37 @@ def floatNumberOrArray(value, prev_value = None) :
 
 def bucketizedTable(table, keyIdx, ValueIdx, buckets) :
     copied = table['table_data'].copy()
+    data = dict()
+    bucketized = {bk: 0 for bk in buckets}
+
+    first_key = next(iter(copied))
+    header_dict = {first_key: copied.pop(first_key)}
+
+    for key in copied:
+        value = copied[key]
+        for bucket in bucketized :
+            ranges = bucket.split("-")
+            if len(ranges) == 1 and bucket == key :
+                bucketized[bucket] = float(value)
+            elif len(ranges) == 1 and int(key) > int(ranges[0]) and bucket == buckets[-1]:
+                bucketized[bucket] = bucketized[bucket] + float(value) 
+            elif len(ranges) == 2:
+                min = int(ranges[0])
+                max = int(ranges[1])
+                if int(key) >= min and int(key) <= max :
+                    bucketized[bucket] = bucketized[bucket] + float(value)
+
+    header_dict.update(bucketized)
+    table['bucketized_data'] = header_dict
+
+
+def bucketizedCpuPstate(table, keyIdx, ValueIdx, buckets) :
+    copied = table['table_data'].copy()
 
     it = iter(copied.items())
     first_key, first_value = next(it)
     first_copied = {first_key: first_value}
-    bucketized = dict()
-
-    for bucket in buckets :
-        bucketized[bucket] = 0
+    bucketized = {bk: 0 for bk in buckets}
     
     for key, value in it:
         # this is for mainly CPU P-State, marked as range such as "4801-4900"
@@ -223,7 +246,8 @@ def bucketizedTable(table, keyIdx, ValueIdx, buckets) :
             elif len(ranges) == 2:
                 min = int(ranges[0])
                 max = int(ranges[1])
-                if int(key) >= min and int(key) <= max :
+                digits_in_key = int("".join(filter(str.isdigit, key)))
+                if digits_in_key >= min and digits_in_key <= max :
                     bucketized[bucket] = floatNumberOrArray(value, bucketized[bucket])
 
     first_copied.update(bucketized)
@@ -272,7 +296,10 @@ def socwatchTableTypeChecker(table, core_type, soc_target, tdic) :
         defaultResidencyTable(table, 0, 1)
 
     if "buckets" in soc_target :
-        bucketizedTable(table, 0, 1, soc_target['buckets'])
+        if label == 'CPU_Pstate' :
+            bucketizedCpuPstate(table, 0, 1, soc_target['buckets'])
+        else :
+            bucketizedTable(table, 0, 1, soc_target['buckets'])
 
 def extractHeader(table) :
 

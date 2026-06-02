@@ -1,0 +1,6 @@
+prompt length: 64
+Prefill stage total time = 0.350 s
+total_num_generated_tokens : 128
+total_time_new_tokens : 8.450 s
+Tokens per second : : 15.15 s
+Tokens per second (Models Only): : 16.20 s

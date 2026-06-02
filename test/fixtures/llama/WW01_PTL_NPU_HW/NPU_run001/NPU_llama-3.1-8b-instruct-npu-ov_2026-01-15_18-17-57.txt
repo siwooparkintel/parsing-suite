@@ -1,0 +1,3 @@
+[ INFO ] Pipeline initialization time: 12.500 s
+inference count: 100
+[ INFO ] [Average] P[0]2nd tokens throughput: 15.23 tok/s, 2nd token latency: 65.67 ms, Inference count: 100

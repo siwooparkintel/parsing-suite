@@ -62,7 +62,7 @@ print("args: ", args)
 CL_UNCLASSIFIED = "unclassified"
 CL_PROCYON_RESULT_XML = ["1h_bl_", ".xml"]
 CL_PROCYON_RESULT_ARIELLE = ".procyon-result"
-CL_LPMODE_FULL = "LPmode_full_run.json"
+CL_LPMODE_FULL = "lpmode_full_run.json"
 CL_ETL = ".etl"
 CL_CATAPULT_V3 = ["catav3", "catapult_v3"]
 CL_AI_MODELS = ['_qdq_proxy_', '_output.txt', 'PU_llama']
@@ -393,7 +393,7 @@ def fileClassifier(abs_path, f):
     elif f.find(CL_FLEX_RESULTS) >= 0:
         add_power_runtime(abs_path)
         file_type = CL_FLEX_RESULTS
-    elif f.find(CL_LPMODE_FULL) >= 0:
+    elif f.lower().find(CL_LPMODE_FULL) >= 0:
         add_lpmode_full(abs_path)
         file_type = CL_LPMODE_FULL
     elif any(f.find(key) >= 0 for key in CL_CATAPULT_V3):

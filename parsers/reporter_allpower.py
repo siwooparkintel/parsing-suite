@@ -30,7 +30,7 @@ def autoHideColumn(excel_path):
     if auto_hide_idx is not None and auto_hide_idx <= sheet.max_row :
         auto_hide_row = sheet[auto_hide_idx]
 
-    for cell in auto_hide_row :
+    for cell in auto_hide_row or [] :
         if cell.value == True:
             sheet.column_dimensions[cell.column_letter].hidden = cell.value
 
@@ -45,7 +45,7 @@ def flatten_data_with_autohide(entry, picks, socwatch_targets, PCIe_targets):
     
     addKeyAutoHide(entry['data_summary_type'], flattened_socwatch_list)
 
-    flattened.update(flattened_socwatch_list[0])
+    flattened.update(flattened_socwatch_list[0]) if flattened_socwatch_list else None
     flattened.update(flattener.flatten_pcie_socwatch_dic(entry, PCIe_targets))
     flatten_list.append(flattened)
     flatten_list.extend(flattened_socwatch_list[1:]) if len(flattened_socwatch_list) > 1 else None

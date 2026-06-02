@@ -1,0 +1,12 @@
+[ INFO ] Read model took 1234.50 ms
+[ INFO ] Compile model took 5678.90 ms
+[ INFO ] Start of compilation memory usage: Peak 102400 KB
+[ INFO ] End of compilation memory usage: Peak 204800 KB
+[ INFO ] Compile model ram used 102400 KB
+[ INFO ] First inference took 450.00 ms
+[ INFO ] Execution Devices: GPU
+[ INFO ] Count:            100
+[ INFO ] Duration:         45000.00 ms
+[ INFO ]    Median:        450.00 ms
+[ INFO ]    Average:       450.00 ms
+[ INFO ] Throughput:       2.22 FPS
