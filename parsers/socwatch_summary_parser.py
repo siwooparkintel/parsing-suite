@@ -266,6 +266,17 @@ def defaultResidencyTable(table, keyIdx, ValueIdx) :
         data[key] = tools.tryRoundifNumber(line[ValueIdx])
     table['table_data'] = data
 
+def NVMResidencyTable(table, target) :
+    copied = table['table_data'].copy()
+    data = dict()
+    header = copied[0]
+    for row_idx in range(1, len(copied), 1) :
+        for device in target['devices']:
+            row_header = copied[row_idx][0]
+            if device in row_header :
+                for index, key in enumerate(header):
+                    data[key+"_"+row_header] = copied[row_idx][index]
+    table['table_data'] = data
 
 def socwatchTableTypeChecker(table, core_type, soc_target, tdic) :
 
@@ -292,6 +303,8 @@ def socwatchTableTypeChecker(table, core_type, soc_target, tdic) :
         tempAvrTable(table)
     elif label == "PMC+SLP_S0":
         defaultResidencyTable(table, 0, 2)
+    elif label == 'PCIe_LPM' or label == "PCIe_Active" or label == "PCIe_LTRsnoop":
+        NVMResidencyTable(table, soc_target)
     else :
         defaultResidencyTable(table, 0, 1)
 

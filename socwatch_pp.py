@@ -183,11 +183,11 @@ class SocWatchProcessor:
         # Check for both naming patterns
         summary_csv = output_dir / f"{etl_base_name}.csv"
         summary_csv_alt = output_dir / f"{etl_base_name}_summary.csv"
-        wakeup_csv = output_dir / f"{etl_base_name}_WakeupAnalysis.csv"
-        vtune_pwr = output_dir / f"{etl_base_name}.pwr"
-        trace_csv = output_dir / f"{etl_base_name}_trace.csv"
+        # wakeup_csv = output_dir / f"{etl_base_name}_WakeupAnalysis.csv"
+        # vtune_pwr = output_dir / f"{etl_base_name}.pwr"
+        # trace_csv = output_dir / f"{etl_base_name}_trace.csv"
         
-        return summary_csv.exists() or summary_csv_alt.exists() or wakeup_csv.exists() or vtune_pwr.exists() or trace_csv.exists()
+        return summary_csv.exists() or summary_csv_alt.exists() # or wakeup_csv.exists() or vtune_pwr.exists() or trace_csv.exists()
     
     def _copy_results_to_final(self, work_dir: Path, final_dir: Path, etl_base_name: str):
         """

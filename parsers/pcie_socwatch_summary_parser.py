@@ -12,9 +12,10 @@ def NVMResidencyTable(table, target) :
     header = copied[0]
     for row_idx in range(1, len(copied), 1) :
         for device in target['devices']:
-            if device in copied[row_idx][0] :
+            row_header = copied[row_idx][0]
+            if device in row_header :
                 for index, key in enumerate(header):
-                    data[key+"_"+device] = copied[row_idx][index]
+                    data[key+"_"+row_header] = copied[row_idx][index]
     table['table_data'] = data
 
 

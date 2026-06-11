@@ -21,8 +21,6 @@
     },
     "socwatch_targets" : [
         {"key": "CPU_model", "lookup": "CPU native model"},
-        {"key": "PCH_SLP50", "lookup": "PCH SLP-S0 State Summary: Residency (Percentage and Time)"},
-        {"key": "S0ix_Substate", "lookup": "S0ix Substate Summary: Residency (Percentage and Time)"},
         {"key": "PKG_Cstate", "lookup": "Platform Monitoring Technology CPU Package C-States Residency Summary: Residency (Percentage and Time)"},
         {"key": "Core_Cstate", "lookup": "Core C-State Summary: Residency (Percentage and Time)"},
         {"key": "Core_Concurrency", "lookup": "CPU Core Concurrency (OS)"},
@@ -31,7 +29,6 @@
         {"key": "CPU-iGPU", "lookup": "CPU-iGPU Concurrency Summary: Residency (Percentage and Time)"},
         {"key": "CPU_Pavr", "lookup": "CPU P-State Average Frequency (excluding CPU idle time)"},
         {"key": "CPU_Pstate", "lookup": "CPU P-State/Frequency Summary: Residency (Percentage and Time)"},
-        {"key": "RC_Cstate", "lookup": "Integrated Graphics C-State  Summary: Residency (Percentage and Time)"},
         {"key": "DDR_BW", "lookup": "DDR Bandwidth Requests by Component Summary: Average Rate and Total"},
         {"key": "IO_BW", "lookup": "IO Bandwidth Summary: Average Rate and Total"},
         {"key": "VC1_BW", "lookup": "Display VC1 Bandwidth Summary: Average Rate and Total"},
@@ -43,23 +40,17 @@
         {"key": "D2D_BW", "lookup": "Chip Die to Die Bandwidth Summary: Average Rate and Total"},
         {"key": "IDI_BW", "lookup": "Cluster1 Cores Bandwidth Summary: Average Rate and Total"},
         {"key": "CPU_temp", "lookup": "Temperature Metrics Summary - Sampled: Min/Max/Avg"},
-        {"key": "SoC_temp", "lookup": "SoC Domain Temperatures Summary - Sampled: Min/Max/Avg"},
-        {"key": "NPU_Dstate", "lookup": "Neural Processing Unit (NPU) D-State Residency Summary: Residency (Percentage and Time)"},
-        {"key": "PCIe_LPM", "devices":["NVM"], "lookup": "PCIe LPM Summary - Sampled: Approximated Residency (Percentage)"},
-        {"key": "PCIe_Active", "devices":["NVM"], "lookup": "PCIe Link Active Summary - Sampled: Approximated Residency (Percentage)"},
-        {"key": "PCIe_LTRsnoop", "devices":["NVM"], "lookup": "PCIe LTR Snoop Summary - Sampled: Histogram"},
+        {"key": "PCIe_LPM", "devices":["NVMe"], "lookup": "PCIe LPM Summary - Sampled: Approximated Residency (Percentage)"},
+        {"key": "PCIe_Active", "devices":["NVMe"], "lookup": "PCIe Link Active Summary - Sampled: Approximated Residency (Percentage)"},
+        {"key": "PCIe_LTRsnoop", "devices":["NVMe"], "lookup": "PCIe LTR Snoop Summary - Sampled: Histogram"},
         {"key": "PSR_state", "lookup": "Panel Self-Refresh (PSR2) Summary - Sampled: Approximated Residency (Percentage)"},
         {"key": "DC_count", "lookup": "Dynamic Display State Enabling"},
-        {"key": "Media_Cstate", "lookup": "Media C-State Residency Summary: Residency (Percentage and Time)"},
-        {"key": "NPU_Pstate", "lookup": "Neural Processing Unit (NPU) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "1900", "1901-2900", "2901-3899", "3900"]},
         {"key": "MEMSS_Pstate", "lookup": "Memory Subsystem (MEMSS) P-State Summary - Sampled: Approximated Residency (Percentage)"},
         {"key": "Display_Pstate", "lookup": "Display P-State Summary - Sampled: Approximated Residency (Percentage)"},
-        {"key": "NoC_Pstate", "lookup": "Network on Chip (NoC) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["400", "401-1049", "1050"]},
         {"key": "MUFASA_BW", "lookup": "System Cache Bandwidth Summary: Average Rate and Total"},
         {"key": "HBO_BW", "lookup": "Home Agent Box (HBO) Bandwidth Summary: Average Rate and Total"},
         {"key": "SANTA_BW", "lookup": "Cluster0 Cores Bandwidth Summary: Average Rate and Total"},
-        {"key": "NOC_BW", "lookup": "Network on Chip IO Bandwidth Summary: Average Rate and Total"},
-        {"key": "iGFX_Pstate", "lookup": "Integrated Graphics P-State/Frequency Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "400", "401-1799", "1800-2499", "2500"]}
+        {"key": "NOC_BW", "lookup": "Network on Chip IO Bandwidth Summary: Average Rate and Total"}
     ],
     "PCIe_targets" : [
         {"key": "PCIe_LPM", "devices":["NVM"], "lookup": "PCIe LPM Summary - Sampled: Approximated Residency (Percentage)"},
@@ -67,6 +58,15 @@
         {"key": "PCIe_LTRsnoop", "devices":["NVM"], "lookup": "PCIe LTR Snoop Summary - Sampled: Histogram"}
     ],
     "temp_removed" : [
+        {"key": "PCH_SLP50", "lookup": "PCH SLP-S0 State Summary: Residency (Percentage and Time)"},
+        {"key": "S0ix_Substate", "lookup": "S0ix Substate Summary: Residency (Percentage and Time)"},
+        {"key": "RC_Cstate", "lookup": "Integrated Graphics C-State  Summary: Residency (Percentage and Time)"},
+        {"key": "SoC_temp", "lookup": "SoC Domain Temperatures Summary - Sampled: Min/Max/Avg"},
+        {"key": "NPU_Dstate", "lookup": "Neural Processing Unit (NPU) D-State Residency Summary: Residency (Percentage and Time)"},
+        {"key": "Media_Cstate", "lookup": "Media C-State Residency Summary: Residency (Percentage and Time)"},
+        {"key": "NPU_Pstate", "lookup": "Neural Processing Unit (NPU) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "1900", "1901-2900", "2901-3899", "3900"]},
+        {"key": "NoC_Pstate", "lookup": "Network on Chip (NoC) P-State Summary - Sampled: Approximated Residency (Percentage)", "buckets":["400", "401-1049", "1050"]},
+        {"key": "iGFX_Pstate", "lookup": "Integrated Graphics P-State/Frequency Summary - Sampled: Approximated Residency (Percentage)", "buckets":["0", "400", "401-1799", "1800-2499", "2500"]},
         {"key": "PMC+SLP_S0", "lookup": "PCH Active State (as percentage of PMC Active plus SLP_S0 Time) Summary: Residency (Percentage)"}
     ],
     "Second_folder_list" : ["ETL", "POWER", "SOCWATCH", "PCIE"]

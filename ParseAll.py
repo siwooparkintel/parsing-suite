@@ -1,17 +1,18 @@
 """
 ====================================================================
 Feature working list : 
-1. HoBL automation (-hb usable)
-2. Hopper automation, (runtime parsing from hopper-results.json)
-3. Socwatch creating header first for better column order control
-4. Skip if no data type detected, instead of creating empty excel line
+1. HoBL automation (-hb usable, non-hb works the same way now) [checked 6/2/2026]
+2. Hopper automation, (runtime parsing from hopper-results.json) [checked 6/2/2026]
+3. Socwatch creating header first for better column order control [checked 6/2/2026]
+4. Skip if no data type detected, instead of creating empty excel line [checked 6/2/2026]
 
 Workload parsing capability tested:
-1. LPmode full run JSON <LPmode_SR_hopper.py can be removed>
-2. Teams 3x3 with vpt FPS <Teams_hopper.py can be removed>
-3. Andrii's CR 484, 404 Teams++ with Procyon XML + zipped Arielle results <Teams++.py integrated into ParseAll.py but will be remained for dedicated Teams parsing for Andrii>
-4. MS AI model output parser (ex) xPU_Model_PSD1_v0_a_qdq_proxy_w8a16_output.txt
-5. Llama model with benchmark.exe(or benchmark.py) output parser (ex) xPU_llama-3.1-8b-instruct-npu-ov_2026-01-15_18-17-57.txt
+1. LPmode full run JSON <LPmode_SR_hopper.py can be removed> [checked 6/2/2026]
+2. Teams 3x3 with vpt FPS <Teams_hopper.py can be removed> [checked 6/2/2026]
+3. Andrii's CR 484, 404 Teams++ with Procyon XML + zipped Arielle results [checked 6/2/2026]
+   <Teams++.py integrated into ParseAll.py but will be remained for dedicated Teams parsing for Andrii>
+4. MS AI model output parser (ex) xPU_Model_PSD1_v0_a_qdq_proxy_w8a16_output.txt [checked 6/2/2026]
+5. Llama model with benchmark.exe(or benchmark.py) output parser (ex) xPU_llama-3.1-8b-instruct-npu-ov_2026-01-15_18-17-57.txt [checked 6/2/2026]
 6. idle_hopper.py can be removed
 7. 
 
@@ -20,7 +21,7 @@ Workload parsing capability tested:
 
 Workload not parser added yet
 1. Geek bench (gb6_result.json or gb6_output.txt)
-2. Game final FPS score Screen Shot parser (Shadows of Tomb Raider)
+2. Game final FPS score Screen Shot parser (SOTR, Shadows of Tomb Raider)
 3. 
 ====================================================================
 """
