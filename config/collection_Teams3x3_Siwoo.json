@@ -1,0 +1,18 @@
+[
+    {
+        "data_label":"Teams3x3",
+        "condition":"Baseline 15FPS",
+        "data_summary_type": "expended",
+        "power_summary_path":"\\\\wospnp3.amr.corp.intel.com\\Pnpext\\From Dheerendra\\TTL & NVL PROJECTION\\Data_Collected_BL_TEAMS_3X3\\Power\\WW25.3_A4R7_PR5_EarlyDrop_DC-BPE_TEAMS_Run_1.689mW\\WW25.3_A4R7_PR5_EarlyDrop_DC-BPE_TEAMS_Run_summary.csv",
+        "socwatch_summary_path":"\\\\wospnp3.amr.corp.intel.com\\Pnpext\\From Dheerendra\\TTL & NVL PROJECTION\\Data_Collected_BL_TEAMS_3X3\\SOCWATCH_REGULAR\\BTL_TEAMS_3X3_BPE_FLOW_SOCWATCH_REGULAR_484_run_3\\BTL_TEAMS_3X3_BPE_FLOW_SOCWATCH_REGULAR_484_run_3.csv",
+        "PCIe_socwatch_summary_path":"\\\\wospnp3.amr.corp.intel.com\\Pnpext\\From Dheerendra\\TTL & NVL PROJECTION\\Data_Collected_BL_TEAMS_3X3\\SOCWATCH_MINIMAL\\BTL_TEAMS_3X3_BPE_FLOW_SOCWATCH_MINIMAL_484_run_1\\BTL_TEAMS_3X3_BPE_FLOW_SOCWATCH_MINIMAL_484_run_1.csv"
+    },
+    {
+        "data_label":"Teams3x3+MEP",
+        "condition":"Teams3x3+MEP 15FPS",
+        "data_summary_type": "expended",
+        "power_summary_path":"\\\\wospnp3.amr.corp.intel.com\\Pnpext\\From Dheerendra\\TTL & NVL PROJECTION\\Data_Collected_BL_MEP\\Power\\WW25.3_A4R7_PR5_EarlyDrop_DC-BPE_MEP_Run3_2030mW\\WW25.3_A4R7_PR5_EarlyDrop_DC-BPE_MEP_Run3_summary.csv",
+        "socwatch_summary_path":"\\\\wospnp3.amr.corp.intel.com\\Pnpext\\From Dheerendra\\TTL & NVL PROJECTION\\Data_Collected_BL_MEP\\SOCWATCH_REGULAR\\BTL_TEAMS_MEP_3X3_BPE_FLOW_SOCWATCH_REGULAR_484_run_1\\BTL_TEAMS_MEP_3X3_BPE_FLOW_SOCWATCH_REGULAR_484_run_1.csv",
+        "PCIe_socwatch_summary_path":"\\\\wospnp3.amr.corp.intel.com\\Pnpext\\From Dheerendra\\TTL & NVL PROJECTION\\Data_Collected_BL_MEP\\SOCWATCH_MINIMAL\\BTL_TEAMS_MEP_3X3_BPE_FLOW_SOCWATCH_MINIMAL_484_run_3\\BTL_TEAMS_MEP_3X3_BPE_FLOW_SOCWATCH_MINIMAL_484_run_3.csv"
+    }
+]

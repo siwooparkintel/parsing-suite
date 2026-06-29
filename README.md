@@ -19,6 +19,8 @@ A comprehensive framework for parsing and analyzing diverse workload performance
 | **socwatch_pp.py** | SocWatch ETL batch post-processor | [Details](./docs/socwatch_pp.md) |
 | **Teams++.py** | Teams/AI mixed-source parser with Procyon integration | [Details](./docs/teams-plus-plus.md) |
 | **trace_power_slicer.py** | Power trace slicer by rails and time ranges | [Details](./docs/README_trace_slicer.md) |
+| **trace_separator.py** | Split large SoCWatch `_trace.csv` into per-event files | [Details](./docs/trace_separator.md) |
+| **trace_plotter.py** | Plot separated SoCWatch event CSVs (P-states, BW, temperature) | [Details](./docs/trace_plotter.md) |
 
 ## Quick Start
 
@@ -68,6 +70,18 @@ python trace_power_slicer.py <trace_file> --config src/trace_slicer.config -o <o
 python trace_power_slicer.py
 ```
 
+**For SoCWatch trace separation and plotting:**
+```bash
+# Step 1: split the large _trace.csv into per-event files
+python trace_separator.py <_trace.csv> --list          # preview event types
+python trace_separator.py <_trace.csv>                 # write to <stem>_separated/
+
+# Step 2: plot any separated event CSV
+python trace_plotter.py <separated_event.csv>          # auto-detects event type
+python trace_plotter.py <separated_event.csv> --output chart.png
+python trace_plotter.py --list                         # show all registered event configs
+```
+
 **For SocWatch ETL post-processing:**
 ```bash
 python socwatch_pp.py <input_folder>
@@ -88,6 +102,8 @@ python parsers/fps_img_parser.py <image_or_folder> --debug
 - **SocWatch ETL processing**: See [socwatch_pp](./docs/socwatch_pp.md) for batch .etl file processing
 - **Teams/Procyon mixed parsing**: See [Teams++ guide](./docs/teams-plus-plus.md) for recursive dataset parsing and Excel export
 - **Power trace slicing**: See [trace_power_slicer](./docs/README_trace_slicer.md) for workload analysis
+- **SoCWatch trace separation**: See [trace_separator](./docs/trace_separator.md) to split large `_trace.csv` files by event type
+- **SoCWatch event plotting**: See [trace_plotter](./docs/trace_plotter.md) for P-state, DDR bandwidth, and temperature charts
 - **Best practices**: Review individual parser documentation in [docs](./docs/) folder
 
 ## Supported Data Types
